@@ -50,11 +50,13 @@ library
     exposed-modules:
       ContractModel
       ContractModel.Internal
+      ContractModel.Symbolics
     build-depends:
-        QuickCheck -any,
-        base >=4.7 && <5,
-        quickcheck-dynamic,
-        quickcheck-dynamic-iosim,
-        io-classes,
-        io-sim
+      base >=4.7 && <5,
+      QuickCheck -any,
+      quickcheck-dynamic >= 2.0.0,
+      quickcheck-dynamic-iosim,
+      io-classes,
+      io-sim,
+      plutus-ledger-api
 

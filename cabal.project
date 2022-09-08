@@ -1,5 +1,6 @@
 packages:
   contractmodel
+
 -- TODO: remove once io-sim is on hackage
 source-repository-package
   type: git
@@ -17,3 +18,91 @@ source-repository-package
   subdir:
     quickcheck-dynamic
     quickcheck-dynamic-iosim
+
+-- Tracking cardano-node
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-ledger
+  tag: f49879a79098d9372d63baa13b94a941a56eda34
+  subdir:
+    eras/alonzo/impl
+    eras/alonzo/test-suite
+    eras/babbage/impl
+    eras/babbage/test-suite
+    eras/byron/chain/executable-spec
+    eras/byron/crypto
+    eras/byron/crypto/test
+    eras/byron/ledger/executable-spec
+    eras/byron/ledger/impl
+    eras/byron/ledger/impl/test
+    eras/shelley/impl
+    eras/shelley/test-suite
+    eras/shelley-ma/impl
+    eras/shelley-ma/test-suite
+    libs/cardano-ledger-core
+    libs/cardano-ledger-pretty
+    libs/cardano-ledger-test
+    libs/cardano-protocol-tpraos
+    libs/cardano-data
+    libs/vector-map
+    libs/set-algebra
+    libs/small-steps
+    libs/small-steps-test
+    libs/non-integral
+
+-- Tracking cardano-node
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/goblins
+  tag: cde90a2b27f79187ca8310b6549331e59595e7ba
+  --sha256: 17c88rbva3iw82yg9srlxjv2ia5wjb9cyqw44hik565f5v9svnyg
+
+-- Tracking cardano-node
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-base
+  tag: a3c13fb11bc41fedff7885ca70a3b33f61fef4b5
+  --sha256: 0h492cz9mvzbsl5yzvp3iq40c0z0j5hmrifdrnnqzzk02g9j9c4b
+  subdir:
+    base-deriving-via
+    binary
+    binary/test
+    cardano-crypto-class
+    cardano-crypto-praos
+    cardano-crypto-tests
+    measures
+    orphans-deriving-via
+    slotting
+    strict-containers
+
+-- Tracking cardano-node
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-prelude
+  tag: 6ea36cf2247ac0bc33e08c327abec34dfd05bd99
+  --sha256: 0z2y3wzppc12bpn9bl48776ms3nszw8j58xfsdxf97nzjgrmd62g
+  subdir:
+    cardano-prelude
+    cardano-prelude-test
+
+-- Tracking cardano-node
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/cardano-crypto
+  tag: f73079303f663e028288f9f4a9e08bcca39a923e
+  --sha256: 1n87i15x54s0cjkh3nsxs4r1x016cdw1fypwmr68936n3xxsjn6q
+
+-- Tracking cardano-node
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/plutus
+  tag: f680ac6979e069fcc013e4389ee607ff5fa6672f
+  --sha256: 180jq8hd0jlg48ya7b5yw3bnd2d5czy0b1agy9ng3mgnzpyq747i
+  subdir:
+    plutus-core
+    plutus-ledger-api
+    plutus-tx
+    plutus-tx-plugin
+    prettyprinter-configurable
+    stubs/plutus-ghc-stub
+    word-array

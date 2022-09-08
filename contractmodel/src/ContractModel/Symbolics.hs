@@ -1,8 +1,16 @@
 module ContractModel.Symbolics where
 
-import Ledger.Value (AssetClass, Value, assetClass, assetClassValue, assetClassValueOf, flattenValue, isZero, leq)
+import Plutus.V1.Ledger.Value
 
+import PlutusTx.Monoid qualified as PlutusTx
+
+import Test.QuickCheck.StateModel
+
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Data
+import Data.Foldable
+import Data.Maybe
 
 {- Note [Symbolic Tokens and Symbolic Values]
   Symbolic tokens represent tokens that are created during runtime of a `ContractModel` test.
@@ -28,31 +36,19 @@ data SymToken = SymToken { symVar :: Var AssetKey, symVarIdx :: String } derivin
 -- tokens with an amount
 data SymValue = SymValue { symValMap :: Map SymToken Integer, actualValPart :: Value } deriving (Show, Data)
 
-{-
-import Ledger.Ada qualified as Ada
-import PlutusTx.Monoid qualified as PlutusTx
-
-import Data.Aeson qualified as JSON
-import Data.Data
-import Data.Foldable
-import Data.Map (Map)
-import Data.Map qualified as Map
-import Data.Maybe
-
-import Test.QuickCheck.StateModel hiding (Action, Actions, arbitraryAction, initialState, monitoring, nextState,
-                                   perform, precondition, shrinkAction, stateAfter)
-
-
-
 instance Show SymToken where
   show (SymToken (Var i) n) = "tok" ++ show i ++ "." ++ n
+
 instance Semigroup SymValue where
   (SymValue m v) <> (SymValue m' v') = SymValue (Map.unionWith (+) m m') (v <> v')
+
 instance Monoid SymValue where
   mempty = SymValue mempty mempty
+
 instance Eq SymValue where
   (SymValue m v) == (SymValue m' v') = Map.filter (/= 0) m == Map.filter (/= 0) m'
                                      && v == v'
+
 -- | Check if a symbolic value is zero
 symIsZero :: SymValue -> Bool
 symIsZero (SymValue m v) = all (==0) m && isZero v
@@ -92,9 +88,6 @@ instance SymValueLike Value where
 instance SymValueLike SymValue where
   toSymValue = id
 
-instance SymValueLike Ada.Ada where
-  toSymValue = toSymValue . Ada.toValue
-
 instance TokenLike SymToken where
   symAssetClassValueOf (SymValue svm _) t = sum $ Map.lookup t svm
 
@@ -104,4 +97,3 @@ instance TokenLike SymToken where
 instance TokenLike AssetClass where
   symAssetClassValueOf (SymValue _ v) t = assetClassValueOf v t
   symAssetClassValue t i = toSymValue $ assetClassValue t i
--}

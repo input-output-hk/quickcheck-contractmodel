@@ -38,6 +38,7 @@ common lang
     FlexibleInstances
     MultiParamTypeClasses
     RankNTypes
+    GeneralizedNewtypeDeriving
 
   ghc-options:
     -Wall -Wnoncanonical-monad-instances -Wunused-packages
@@ -51,12 +52,20 @@ library
       ContractModel
       ContractModel.Internal
       ContractModel.Symbolics
+    -- General dependencies
     build-depends:
       base >=4.7 && <5,
+      containers
+    -- QuickCheck dependencies
+    build-depends:
       QuickCheck -any,
       quickcheck-dynamic >= 2.0.0,
-      quickcheck-dynamic-iosim,
+      quickcheck-dynamic-iosim
+    -- IOSim dependencies
+    build-depends:
       io-classes,
-      io-sim,
-      plutus-ledger-api
-
+      io-sim
+    -- Plutus and Cardano dependencies
+    build-depends:
+      plutus-ledger-api,
+      plutus-tx

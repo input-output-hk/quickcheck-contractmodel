@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 module ContractModel.Symbolics where
 
 import Plutus.V1.Ledger.Value

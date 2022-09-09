@@ -25,3 +25,13 @@ import Test.QuickCheck.StateModel
 -- * Build old useful properties from this general interface
 --
 -- * Instantiate interface with node, emulator, iosim, etc. etc. etc....
+
+type Era = BabbageEra
+
+data ChainIndex = ChainIndex { before       :: UTxO Era
+                             , after        :: UTxO Era
+                             , transactions :: [(Tx Era, UTxO Era)]
+                             }
+
+class ContractTestable m where
+  withChainIndex :: m a -> m (a, ChainIndex)

@@ -33,7 +33,8 @@ type Era = BabbageEra
 data ChainIndex = ChainIndex
   { before       :: UTxO Era
   , after        :: UTxO Era
-  -- TODO: this probably also needs to know what slot we are in (i.e. we need to know all the
+  -- TODO: this probably also needs to know what slot
+  -- we are in (i.e. we need to know all the
   -- state that determines the result
   , transactions :: [(Tx Era, UTxO Era)]
   }

@@ -68,4 +68,5 @@ library
     -- Plutus and Cardano dependencies
     build-depends:
       plutus-ledger-api,
-      plutus-tx
+      plutus-tx,
+      cardano-api

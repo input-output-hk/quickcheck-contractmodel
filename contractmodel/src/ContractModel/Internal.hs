@@ -3,6 +3,10 @@ module ContractModel.Internal where
 import Test.QuickCheck
 import Test.QuickCheck.StateModel
 
+import Cardano.Api
+
+type Era = BabbageEra
+
 -- TODO:
 -- * Figure out how to talk to node?!
 -- * Import old ContractModel class
@@ -26,12 +30,19 @@ import Test.QuickCheck.StateModel
 --
 -- * Instantiate interface with node, emulator, iosim, etc. etc. etc....
 
-type Era = BabbageEra
+data ChainIndex = ChainIndex
+  { before       :: UTxO Era
+  , after        :: UTxO Era
+  -- TODO: this probably also needs to know what slot we are in (i.e. we need to know all the
+  -- state that determines the result
+  , transactions :: [(Tx Era, UTxO Era)]
+  }
 
-data ChainIndex = ChainIndex { before       :: UTxO Era
-                             , after        :: UTxO Era
-                             , transactions :: [(Tx Era, UTxO Era)]
-                             }
+instance Semigroup ChainIndex where
+  ci <> ci' = ChainIndex { before = before ci
+                         , after  = after ci'
+                         , transactions = transactions ci ++ transactions ci'
+                         }
 
 class ContractTestable m where
   withChainIndex :: m a -> m (a, ChainIndex)

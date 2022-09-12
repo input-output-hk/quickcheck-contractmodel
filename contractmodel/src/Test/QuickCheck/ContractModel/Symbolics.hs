@@ -60,7 +60,10 @@ instance Eq SymValue where
 
 -- | Check if a symbolic value is zero
 symIsZero :: SymValue -> Bool
-symIsZero (SymValue m v) = all (==0) m && v == mempty
+symIsZero (SymValue m v) =
+  and [ all (==0) m
+      , all ((==0) . snd) (valueToList v)
+      ]
 
 -- | Check if one symbolic value is less than or equal to another
 symLeq :: SymValue -> SymValue -> Bool

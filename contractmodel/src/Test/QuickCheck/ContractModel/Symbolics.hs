@@ -10,25 +10,10 @@ import Data.Map qualified as Map
 import Data.Data
 import Data.Maybe
 
-
-{- Note [Symbolic Tokens and Symbolic Values]
-  Symbolic tokens represent tokens that are created during runtime of a `ContractModel` test.
-  It is important that these tokens are *symbolic* as there needs to be a phase-separation
-  between the generation and execution part of a `ContractModel` test in order to ensure that
-  failing test cases can be shrunk - which is crucial for debugging.
-
-  An important invariant of symbolic values is that different symbolic tokens represent
-  different actual tokens. This is enforced by a uniqueness check in the `ContractModel`
-  tests.
-
-  A symbolic token is a Var Int. You might expect it to be a Var [AssetId] but because the
-  execution of test code is split between two monads we end up needing two indirections.
-
-  See Note [The Env contract] on how to get the meaning of the symbolic tokens out of the
-  inner monad.
--}
-
--- TODO: this needs to be upstreamed - these implementations don't work!
+-- TODO: this *needs* to be upstreamed - these implementations don't work!
+-- TODO: if we run into issues because of this we might have to resort to
+-- using the `Value` type from `plutus-core` instead - which would be yuck and
+-- would start mixing different APIs.
 instance Data Quantity
 instance Data Value
 

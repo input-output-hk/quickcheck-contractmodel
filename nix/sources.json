@@ -22,5 +22,17 @@
         "type": "tarball",
         "url": "https://github.com/NixOS/nixpkgs/archive/5f244caea76105b63d826911b2a1563d33ff1cdc.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "iohkNix": {
+        "branch": "release-21.05",
+        "description": "IOHK nix lib, packages and overlays",
+        "homepage": "",
+        "owner": "input-output-hk",
+        "repo": "iohk-nix",
+        "rev": "6a20fc25392d102170406a164e978ebaad3d20fc",
+        "sha256": "0i7j0vjcgplmzi4w45hp6crmcahf6b0pixx1r77sdppwlpsvijli",
+        "type": "tarball",
+        "url": "https://github.com/input-output-hk/iohk-nix/archive/6a20fc25392d102170406a164e978ebaad3d20fc.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

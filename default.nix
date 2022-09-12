@@ -10,6 +10,8 @@ let
   # If haskellNix is not found run:
   #   niv add input-output-hk/haskell.nix -n haskellNix
 
+  iohkNix = import sources.iohkNix {};
+
   # Import nixpkgs and pass the haskell.nix provided nixpkgsArgs
   pkgs = import
     # haskell.nix provides access to the nixpkgs pins which are used by our CI,
@@ -18,7 +20,10 @@ let
     haskellNix.sources.nixpkgs-unstable
     # These arguments passed to nixpkgs, include some patches and also
     # the haskell.nix functionality itself as an overlay.
-    haskellNix.nixpkgsArgs;
+    {
+      overlays = haskellNix.nixpkgsArgs.overlays ++ iohkNix.overlays.crypto;
+      config = haskellNix.nixpkgsArgs.config;
+    };
 in pkgs.haskell-nix.project {
   # 'cleanGit' cleans a source directory based on the files known by git
   src = pkgs.haskell-nix.haskellLib.cleanGit {

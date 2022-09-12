@@ -49,9 +49,9 @@ library
     import: lang
     hs-source-dirs: src
     exposed-modules:
-      ContractModel
-      ContractModel.Internal
-      ContractModel.Symbolics
+      Test.QuickCheck.ContractModel
+      Test.QuickCheck.ContractModel.Internal
+      Test.QuickCheck.ContractModel.Symbolics
     -- General dependencies
     build-depends:
       base >=4.7 && <5,

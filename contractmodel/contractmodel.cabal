@@ -39,6 +39,7 @@ common lang
     MultiParamTypeClasses
     RankNTypes
     GeneralizedNewtypeDeriving
+    TemplateHaskell
 
   ghc-options:
     -Wall -Wnoncanonical-monad-instances -Wunused-packages
@@ -55,7 +56,10 @@ library
     -- General dependencies
     build-depends:
       base >=4.7 && <5,
-      containers
+      containers,
+      lens,
+      mtl,
+      uniplate
     -- QuickCheck dependencies
     build-depends:
       QuickCheck -any,

@@ -71,7 +71,7 @@ class ContractTestable m where
 --   * the amount that has been minted (`minted`)
 data ModelState state = ModelState
         { _currentSlot    :: SlotNo
-        , _balanceChanges :: Map Wallet SymValue
+        , _balanceChanges :: Map (AddressInEra Era) SymValue
         , _minted         :: SymValue
         , _symTokens      :: Set SymToken
         , _assertions     :: [(String, Bool)]

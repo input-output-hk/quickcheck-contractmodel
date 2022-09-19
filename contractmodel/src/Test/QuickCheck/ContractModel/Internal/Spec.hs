@@ -2,7 +2,7 @@ module Test.QuickCheck.ContractModel.Internal.Spec where
 
 import Control.Monad.State as State
 import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.Writer as Writer
 import Test.QuickCheck.StateModel
 import Data.Map (Map)
 import Data.Map qualified as Map
@@ -97,3 +97,49 @@ minted = mintedL
 --   `balances` from the `minted` value.
 lockedValue :: ModelState s -> SymValue
 lockedValue s = s ^. minted <> inv (fold $ s ^. balanceChanges)
+
+-- | Modify a field in the `ModelState`
+modState :: forall state a. Setter' (ModelState state) a -> (a -> a) -> Spec state ()
+modState l f = Spec $ State.modify $ over l f
+
+-- | Monads with read access to the model state: the `Spec` monad used in `nextState`, and the `DL`
+--   monad used to construct test scenarios.
+class Monad m => GetModelState m where
+    -- | The contract state type of the monad. For both `Spec` and `DL` this is simply the @state@
+    --   parameter of the respective monad.
+    type StateType m :: *
+
+    -- | Get the current model state.
+    getModelState :: m (ModelState (StateType m))
+
+-- | Get the contract state part of the model state.
+getContractState :: GetModelState m => m (StateType m)
+getContractState = _contractState <$> getModelState
+
+-- | Get a component of the model state.
+askModelState :: GetModelState m => (ModelState (StateType m) -> a) -> m a
+askModelState f = f <$> getModelState
+
+-- | Get a component of the contract state.
+askContractState :: GetModelState m => (StateType m -> a) -> m a
+askContractState f = askModelState (f . _contractState)
+
+-- | Get a component of the model state using a lens.
+viewModelState :: GetModelState m => Getting a (ModelState (StateType m)) a -> m a
+viewModelState l = askModelState (^. l)
+
+-- | Get a component of the contract state using a lens.
+viewContractState :: GetModelState m => Getting a (StateType m) a -> m a
+viewContractState l = viewModelState (contractState . l)
+
+instance GetModelState (Spec state) where
+  type StateType (Spec state) = state
+  getModelState = Spec State.get
+
+runSpec :: Spec state ()
+        -> Var AssetKey
+        -> ModelState state
+        -> ModelState state
+runSpec (Spec spec) v s = flip State.execState s $ do
+  w <- runReaderT (snd <$> Writer.runWriterT spec) v
+  symTokens %= (Set.fromList w <>)

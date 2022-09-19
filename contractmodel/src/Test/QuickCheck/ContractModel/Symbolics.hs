@@ -4,19 +4,12 @@ module Test.QuickCheck.ContractModel.Symbolics where
 import Cardano.Api
 
 import Test.QuickCheck.StateModel
+import Test.QuickCheck.ContractModel.Internal.Common ()
 
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Data
 import Data.Maybe
-
--- TODO: this *needs* to be upstreamed - these implementations don't work and are
--- only here to make the type checker happy!
--- TODO: if we run into issues because of this we might have to resort to
--- using the `Value` type from `plutus-core` instead - which would be yuck and
--- would start mixing different APIs.
-instance Data Quantity
-instance Data Value
 
 newtype AssetKey = AssetKey Int deriving (Ord, Eq, Show, Num, Data)
 

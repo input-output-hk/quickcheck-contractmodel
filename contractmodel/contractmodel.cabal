@@ -44,7 +44,8 @@ common lang
   ghc-options:
     -Wall -Wnoncanonical-monad-instances -Wunused-packages
     -Wincomplete-uni-patterns -Wincomplete-record-updates
-    -Wredundant-constraints -Widentities
+    -Wredundant-constraints -Widentities -Wno-name-shadowing
+    -Wno-orphans -Wno-redundant-constraints
 
 library
     import: lang
@@ -54,6 +55,7 @@ library
       Test.QuickCheck.ContractModel.Internal
       Test.QuickCheck.ContractModel.Internal.Common
       Test.QuickCheck.ContractModel.Internal.ChainIndex
+      Test.QuickCheck.ContractModel.Internal.Hacks
       Test.QuickCheck.ContractModel.Internal.Spec
       Test.QuickCheck.ContractModel.Symbolics
     -- General dependencies

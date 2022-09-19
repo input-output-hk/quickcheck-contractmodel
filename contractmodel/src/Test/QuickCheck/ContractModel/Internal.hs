@@ -3,12 +3,11 @@ module Test.QuickCheck.ContractModel.Internal where
 
 import Control.Lens
 import Control.Monad.Reader
-import Control.Monad.Writer
+import Control.Monad.Writer as Writer
 import Control.Monad.State as State
 
 import Test.QuickCheck
-import Test.QuickCheck.StateModel qualified as SM
-import Test.QuickCheck.StateModel hiding (Action)
+import Test.QuickCheck.StateModel qualified as StateModel
 import Test.QuickCheck.ContractModel.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Spec
 import Test.QuickCheck.ContractModel.Internal.Common
@@ -102,3 +101,84 @@ class ( Typeable state
     --   See `Test.QuickCheck.shrink` for more information on shrinking.
     shrinkAction :: ModelState state -> Action state -> [Action state]
     shrinkAction _ _ = []
+
+-- | Check if a given action creates new symbolic tokens in a given `ModelState`
+createsTokens :: ContractModel state
+              => ModelState state
+              -> Action state
+              -> Bool
+createsTokens s a = ([] /=) $ State.evalState (runReaderT (snd <$> Writer.runWriterT (unSpec (nextState a))) (StateModel.Var 0)) s
+
+-- | Wait the given number of slots. Updates the `currentSlot` of the model state.
+wait :: ContractModel state => Integer -> Spec state ()
+wait 0 = return ()
+wait n = do
+  now <- viewModelState currentSlot
+  nextReactiveState (now + fromIntegral n)
+  modState currentSlotL (const (now + fromIntegral n))
+
+-- | Wait until the given slot. Has no effect if `currentSlot` is greater than the given slot.
+waitUntil :: ContractModel state => SlotNo -> Spec state ()
+waitUntil n = do
+  now <- viewModelState currentSlot
+  when (now < n) $ do
+    let SlotNo n' = n - now
+    wait (fromIntegral n')
+
+instance ContractModel state => Show (StateModel.Action (ModelState state) a) where
+    showsPrec p (ContractAction _ a) = showsPrec p a
+    showsPrec p (WaitUntil n)        = showParen (p >= 11) $ showString "WaitUntil " . showsPrec 11 n
+
+deriving instance ContractModel state => Eq (StateModel.Action (ModelState state) a)
+
+contractAction :: ContractModel state => ModelState state -> Action state -> StateModel.Action (ModelState state) AssetKey
+contractAction s a = ContractAction (createsTokens s a) a
+
+instance ContractModel state => StateModel.StateModel (ModelState state) where
+  data Action (ModelState state) a where
+    ContractAction :: Bool
+                   -> Action state
+                   -> StateModel.Action (ModelState state) AssetKey
+    WaitUntil :: SlotNo
+              -> StateModel.Action (ModelState state) ()
+
+  actionName (ContractAction _ act) = actionName act
+  actionName (WaitUntil _)          = "WaitUntil"
+
+  arbitraryAction s =
+    frequency [(floor $ 100.0*(1.0-waitProbability s), do a <- arbitraryAction s
+                                                          return (StateModel.Some (ContractAction (createsTokens s a) a)))
+              ,(floor $ 100.0*waitProbability s, StateModel.Some . WaitUntil . step <$> arbitraryWaitInterval s)]
+        where
+            slot = s ^. currentSlot
+            step n = slot + n
+
+  shrinkAction s (ContractAction _ a) =
+    [ StateModel.Some (WaitUntil (SlotNo n')) | let SlotNo n = runSpec (nextState a) (StateModel.Var 0) s ^. currentSlot
+                                              , n' <- n : shrink n
+                                              , SlotNo n' > s ^. currentSlot ] ++
+    [ StateModel.Some (contractAction s a') | a' <- shrinkAction s a ]
+  shrinkAction s (WaitUntil (SlotNo n))        =
+    [ StateModel.Some (WaitUntil (SlotNo n')) | n' <- shrink n, SlotNo n' > s ^. currentSlot ]
+
+  initialState = ModelState { _currentSlot      = 1
+                            , _balanceChanges   = mempty
+                            , _minted           = mempty
+                            , _assertions       = mempty
+                            , _assertionsOk     = True
+                            , _symTokens        = mempty
+                            , _contractState    = initialState
+                            }
+
+  nextState s (ContractAction _ cmd) v = runSpec (nextState cmd) v s
+  nextState s (WaitUntil n) _          = runSpec (() <$ waitUntil n) (error "unreachable") s
+
+  -- Note that the order of the preconditions in this case matter - we want to run
+  -- `getAllSymtokens` last because its likely to be stricter than the user precondition
+  -- and so if the user relies on the lazyness of the Gen monad by using the precondition
+  -- to avoid duplicate checks in the precondition and generator we don't screw that up.
+  precondition s (ContractAction _ cmd) = s ^. assertionsOk
+                                        && precondition s cmd
+                                        && getAllSymtokens cmd `Set.isSubsetOf` (s ^. symTokens)
+  precondition s (WaitUntil n)          = n > s ^. currentSlot
+  precondition _ _                      = True

@@ -143,3 +143,36 @@ runSpec :: Spec state ()
 runSpec (Spec spec) v s = flip State.execState s $ do
   w <- runReaderT (snd <$> Writer.runWriterT spec) v
   symTokens %= (Set.fromList w <>)
+
+-- | Mint tokens. Minted tokens start out as `lockedValue` (i.e. owned by the contract) and can be
+--   transferred to wallets using `deposit`.
+mint :: SymValueLike v => v -> Spec state ()
+mint v = modState mintedL (<> toSymValue v)
+
+-- | Burn tokens. Equivalent to @`mint` . `inv`@.
+burn :: SymValueLike v => v -> Spec state ()
+burn = mint . inv . toSymValue
+
+-- | Add tokens to the `balanceChange` of an address. The added tokens are subtracted from the
+--   `lockedValue` of tokens held by contracts.
+deposit :: SymValueLike v => AddressInEra Era -> v -> Spec state ()
+deposit w val = modState (balanceChangesL . at w) (Just . maybe (toSymValue val) (<> toSymValue val))
+
+-- | Withdraw tokens from an address. The withdrawn tokens are added to the `lockedValue` of tokens
+--   held by contracts.
+withdraw :: SymValueLike v => AddressInEra Era -> v -> Spec state ()
+withdraw w val = deposit w (inv . toSymValue $ val)
+
+-- | Transfer tokens between wallets, updating their `balances`.
+transfer :: SymValueLike v
+         => AddressInEra Era  -- ^ Transfer from this address
+         -> AddressInEra Era  -- ^ to this address
+         -> v                 -- ^ this much value
+         -> Spec state ()
+transfer fromW toW val = withdraw fromW val >> deposit toW val
+
+-- | Assert that a particular predicate holds at a point in the specification
+assertSpec :: String -> Bool -> Spec state ()
+assertSpec s b = do
+  modState assertions ((s, b):)
+  modState assertionsOk (&&b)

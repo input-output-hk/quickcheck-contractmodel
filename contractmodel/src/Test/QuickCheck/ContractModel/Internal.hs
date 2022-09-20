@@ -10,11 +10,9 @@ import Test.QuickCheck
 import Test.QuickCheck.StateModel qualified as StateModel
 import Test.QuickCheck.ContractModel.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Spec
-import Test.QuickCheck.ContractModel.Internal.Common
 import Test.QuickCheck.ContractModel.Internal.ChainIndex
 import Data.Set (Set)
 import Data.Set qualified as Set
-import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Ord
 import Data.List
@@ -181,4 +179,5 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
                                         && precondition s cmd
                                         && getAllSymtokens cmd `Set.isSubsetOf` (s ^. symTokens)
   precondition s (WaitUntil n)          = n > s ^. currentSlot
-  precondition _ _                      = True
+
+

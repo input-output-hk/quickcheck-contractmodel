@@ -30,5 +30,5 @@ instance Semigroup ChainIndex where
                                         $ transactions ci ++ transactions ci'
                          }
 
-class WithChainIndex m where
+class HasChainIndex m where
   getChainIndex :: m ChainIndex

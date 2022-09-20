@@ -53,6 +53,7 @@ library
     exposed-modules:
       Test.QuickCheck.ContractModel
       Test.QuickCheck.ContractModel.Internal
+      Test.QuickCheck.ContractModel.Internal.Model
       Test.QuickCheck.ContractModel.Internal.Common
       Test.QuickCheck.ContractModel.Internal.ChainIndex
       Test.QuickCheck.ContractModel.Internal.Hacks

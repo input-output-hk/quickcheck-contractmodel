@@ -16,6 +16,7 @@ data TxInState = TxInState
   , chainState :: ChainState
   }
 
+-- TODO: this before-after stuff is a bit suspect!
 data ChainIndex = ChainIndex
   { before       :: ChainState
   , after        :: ChainState
@@ -28,3 +29,6 @@ instance Semigroup ChainIndex where
                          , transactions = sortBy (comparing (slot . chainState))
                                         $ transactions ci ++ transactions ci'
                          }
+
+class WithChainIndex m where
+  getChainIndex :: m ChainIndex

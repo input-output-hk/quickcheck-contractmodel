@@ -201,9 +201,9 @@ varNumOf (ActWaitUntil (StateModel.Var i) _) = i
 varNumOf act | StateModel.Var i <- varOf act = i
 
 instance ContractModel state => Show (Act state) where
-  showsPrec d (Bind (StateModel.Var i) a)   = showParen (d >= 11) $ showString ("tok" ++ show i ++ " := ") . showsPrec 0 a
-  showsPrec d (ActWaitUntil _ n) = showParen (d >= 11) $ showString ("WaitUntil ") . showsPrec 11 n
-  showsPrec d (NoBind _ a)       = showsPrec d a
+  showsPrec d (Bind (StateModel.Var i) a) = showParen (d >= 11) $ showString ("tok" ++ show i ++ " := ") . showsPrec 0 a
+  showsPrec d (ActWaitUntil _ n)          = showParen (d >= 11) $ showString ("WaitUntil ") . showsPrec 11 n
+  showsPrec d (NoBind _ a)                = showsPrec d a
 
 instance ContractModel state => Show (Actions state) where
   showsPrec d (Actions as)
@@ -230,10 +230,11 @@ fromStateModelActions (StateModel.Actions_ rs (Smart k s)) =
   where
     mkAct :: StateModel.Step (ModelState s) -> Maybe (Act s)
     mkAct (StateModel.Var i StateModel.:= ContractAction b act) = Just $ if b then Bind (StateModel.Var i) act else NoBind (StateModel.Var i) act
-    mkAct (v     StateModel.:= WaitUntil n)          = Just $ ActWaitUntil v n
+    mkAct (v                StateModel.:= WaitUntil n)          = Just $ ActWaitUntil v n
 
 evaluteContractModel :: ( ContractModel state
-                        , StateModel.RunModel (ModelState state) m
+                        , StateModel.RunModel (ModelState state) m -- TODO: this instance talks about a different *Action* type than the
+                                                                   -- contractmodel instance!
                         , WithChainIndex m
                         )
                      => Actions state
@@ -242,5 +243,10 @@ evaluteContractModel as = do
   ci <- run getChainIndex
   (st, env) <- StateModel.runActions $ toStateModelActions as
   ci' <- run getChainIndex
-  -- TODO: assert that chain index results match model state results?
   return (st, env, ci <> ci')
+
+-- TODO: assert that chain index results match model state results?
+-- * Here we need to deal with the issues around min ada etc.
+-- * Here we might want flexibility - given that we now have postconditions
+-- TODO: ContractModel.RunModel class
+-- TODO: DL stuff?

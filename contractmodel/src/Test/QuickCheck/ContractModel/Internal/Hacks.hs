@@ -11,5 +11,6 @@ import Data.Data
 -- would start mixing different APIs.
 instance Data Quantity
 instance Data Value
+instance Data AssetId
 
 instance Ord (AddressInEra BabbageEra)

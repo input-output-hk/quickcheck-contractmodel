@@ -1,5 +1,11 @@
 {-# LANGUAGE UndecidableInstances #-}
-module Test.QuickCheck.ContractModel.Internal.Model (ContractModel(..), Actions(..)) where
+module Test.QuickCheck.ContractModel.Internal.Model
+  ( ContractModel(..)
+  , Actions(..)
+  , toStateModelActions
+  , pattern ContractAction
+  , pattern WaitUntil
+  ) where
 import Control.Lens
 import Control.Monad.Reader
 import Control.Monad.Writer as Writer
@@ -14,6 +20,8 @@ import Data.Set qualified as Set
 import Data.Data
 import Data.Maybe
 import Data.Generics.Uniplate.Data (universeBi)
+import Data.Map (Map)
+import Data.Map qualified as Map
 
 import Cardano.Api
 
@@ -39,7 +47,7 @@ class ( Typeable state
     -- | The type of actions that are supported by the contract. An action usually represents a single
     --   `Plutus.Trace.Emulator.callEndpoint` or a transfer of tokens, but it can be anything
     --   that can be interpreted in the `EmulatorTrace` monad.
-    data Action state -- TODO: need to give this a return type (yuck!)
+    data Action state
 
     -- | Given the current model state, provide a QuickCheck generator for a random next action.
     --   This is used in the `Arbitrary` instance for `Actions`s as well as by `anyAction` and
@@ -121,14 +129,14 @@ instance ContractModel state => Show (StateModel.Action (ModelState state) a) wh
 
 deriving instance ContractModel state => Eq (StateModel.Action (ModelState state) a)
 
-contractAction :: ContractModel state => ModelState state -> Action state -> StateModel.Action (ModelState state) AssetKey
+contractAction :: ContractModel state => ModelState state -> Action state -> StateModel.Action (ModelState state) (Map String AssetId)
 contractAction s a = ContractAction (createsTokens s a) a
 
 instance ContractModel state => StateModel.StateModel (ModelState state) where
   data Action (ModelState state) a where
     ContractAction :: Bool
                    -> Action state
-                   -> StateModel.Action (ModelState state) AssetKey
+                   -> StateModel.Action (ModelState state) (Map String AssetId)
     WaitUntil :: SlotNo
               -> StateModel.Action (ModelState state) ()
 
@@ -180,8 +188,8 @@ pattern Actions :: [Act s] -> Actions s
 pattern Actions as <- Actions_ _ (Smart _ as) where
   Actions as = Actions_ [] (Smart 0 as)
 
-data Act s = Bind {varOf :: StateModel.Var AssetKey, actionOf :: Action s }
-           | NoBind {varOf :: StateModel.Var AssetKey, actionOf :: Action s}
+data Act s = Bind {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s }
+           | NoBind {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
            | ActWaitUntil (StateModel.Var ()) SlotNo
 
 deriving instance ContractModel s => Eq (Act s)

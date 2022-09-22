@@ -39,6 +39,7 @@ common lang
     MultiParamTypeClasses
     RankNTypes
     GeneralizedNewtypeDeriving
+    PolyKinds
     TemplateHaskell
 
   ghc-options:

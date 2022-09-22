@@ -40,7 +40,7 @@ dummyModelState s = ModelState 1 Map.empty mempty mempty mempty True s
 -- | The `Spec` monad is a state monad over the `ModelState` with reader and writer components to keep track
 --   of newly created symbolic tokens. It is used exclusively by the `nextState` function to model the effects
 --   of an action on the blockchain.
-newtype Spec state a = Spec { unSpec :: WriterT [SymToken] (ReaderT (Var AssetKey) (State (ModelState state))) a }
+newtype Spec state a = Spec { unSpec :: WriterT [SymToken] (ReaderT (Var (Map String AssetId)) (State (ModelState state))) a }
     deriving (Functor, Applicative, Monad)
 
 instance MonadState state (Spec state) where
@@ -137,7 +137,7 @@ instance GetModelState (Spec state) where
   getModelState = Spec State.get
 
 runSpec :: Spec state ()
-        -> Var AssetKey
+        -> Var (Map String AssetId)
         -> ModelState state
         -> ModelState state
 runSpec (Spec spec) v s = flip State.execState s $ do

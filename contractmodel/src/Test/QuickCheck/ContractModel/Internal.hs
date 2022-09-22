@@ -1,4 +1,5 @@
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module Test.QuickCheck.ContractModel.Internal where
 
 import Control.Lens
@@ -13,11 +14,14 @@ import Test.QuickCheck.ContractModel.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Spec
 import Test.QuickCheck.ContractModel.Internal.ChainIndex
 import Test.QuickCheck.ContractModel.Internal.Model
+import Test.QuickCheck.ContractModel.Internal.Common
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Data
 import Data.Maybe
 import Data.Generics.Uniplate.Data (universeBi)
+import Data.Map (Map)
+import Data.Map qualified as Map
 
 import Cardano.Api
 
@@ -32,31 +36,45 @@ class (Monad m, HasChainIndex m, ContractModel state) => RunModel state m where
   --
   -- The `Lookup` parameter provides an /environment/ to lookup `Var
   -- a` instances from previous steps.
-  perform :: forall a. Typeable a => ModelState state -> Action state a -> StateModel.LookUp m -> m (StateModel.Realized m a)
-
-  -- | Postcondition on the `a` value produced at some step.
-  -- The result is `assert`ed and will make the property fail should it be `False`. This is useful
-  -- to check the implementation produces expected values.
-  postcondition :: forall a. (ModelState state, ModelState state) -> Action state a -> StateModel.LookUp m -> StateModel.Realized m a -> m Bool
-  postcondition _ _ _ _ = pure True
+  perform :: ModelState state
+          -> Action state
+          -> (SymToken -> AssetId)
+          -> m (Map String AssetId)
 
   -- | Allows the user to attach information to the `Property` at each step of the process.
   -- This function is given the full transition that's been executed, including the start and ending
   -- `state`, the `Action`, the current environment to `Lookup` and the value produced by `perform`
   -- while executing this step.
-  monitoring :: forall a. (ModelState state, ModelState state) -> Action state a -> StateModel.LookUp m -> StateModel.Realized m a -> Property -> Property
+  monitoring :: (ModelState state, ModelState state)
+             -> Action state
+             -> (SymToken -> AssetId)
+             -> Map String AssetId
+             -> Property
+             -> Property
   monitoring _ _ _ _ prop = prop
 
-evaluteContractModel :: ( ContractModel state
-                        , RunModel state m
-                        )
-                     => Actions state
-                     -> PropertyM m (ModelState state, StateModel.Env m, ChainIndex) -- TODO: some datatype here?
-evaluteContractModel as = do
-  ci <- run getChainIndex
-  (st, env) <- StateModel.runActions $ toStateModelActions as
-  ci' <- run getChainIndex
-  return (st, env, ci <> ci')
+newtype RunMonad m a = RunMonad { unRunMonad :: m a }
+  deriving (Functor, Applicative, Monad)
+
+instance (Monad (RunMonad m), RunModel state m) => StateModel.RunModel (ModelState state) (RunMonad m) where
+  perform _ _ _ = _
+
+  monitoring (s0, s1) (ContractAction _ cmd) _env _res = monitoring @_ @m (s0, s1) cmd _ _
+  monitoring (s0, _) (WaitUntil n@(SlotNo _n)) _ _ =
+    tabulate "Wait interval" (bucket 10 diff) .
+    tabulate "Wait until" (bucket 10 _n)
+    where SlotNo diff = n - s0 ^. currentSlot
+
+-- evaluteContractModel :: ( ContractModel state
+--                         , RunModel state m
+--                         )
+--                      => Actions state
+--                      -> PropertyM m (ModelState state, Map SymToken AssetId, ChainIndex) -- TODO: some datatype here?
+-- evaluteContractModel as = do
+--   ci <- run getChainIndex
+--   (st, env) <- StateModel.runActions $ toStateModelActions as
+--   ci' <- run getChainIndex
+--   return (st, env, ci <> ci')
 
 -- TODO: assert that chain index results match model state results?
 -- * Here we need to deal with the issues around min ada etc.

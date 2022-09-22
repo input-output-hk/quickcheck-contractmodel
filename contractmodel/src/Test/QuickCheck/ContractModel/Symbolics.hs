@@ -11,10 +11,8 @@ import Data.Map qualified as Map
 import Data.Data
 import Data.Maybe
 
-newtype AssetKey = AssetKey Int deriving (Ord, Eq, Show, Num, Data)
-
 -- | A symbolic token is a token that exists only during ContractModel generation time
-data SymToken = SymToken { symVar    :: Var AssetKey
+data SymToken = SymToken { symVar    :: Var (Map String AssetId)
                          , symVarIdx :: String
                          } deriving (Ord, Eq, Data)
 

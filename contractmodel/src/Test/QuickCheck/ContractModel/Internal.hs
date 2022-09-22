@@ -39,7 +39,7 @@ class (Monad m, HasChainIndex m, ContractModel state) => RunModel state m where
   perform :: ModelState state
           -> Action state
           -> (SymToken -> AssetId)
-          -> m (Map String AssetId)
+          -> RunMonad m (Map String AssetId)
 
   -- | Allows the user to attach information to the `Property` at each step of the process.
   -- This function is given the full transition that's been executed, including the start and ending
@@ -56,10 +56,16 @@ class (Monad m, HasChainIndex m, ContractModel state) => RunModel state m where
 newtype RunMonad m a = RunMonad { unRunMonad :: m a }
   deriving (Functor, Applicative, Monad)
 
-instance (Monad (RunMonad m), RunModel state m) => StateModel.RunModel (ModelState state) (RunMonad m) where
+instance ( Monad (RunMonad m)
+         , RunModel state m
+         , StateModel.Realized (RunMonad m) (Map String AssetId) ~ Map String AssetId
+         ) => StateModel.RunModel (ModelState state) (RunMonad m) where
   perform _ _ _ = _
 
-  monitoring (s0, s1) (ContractAction _ cmd) _env _res = monitoring @_ @m (s0, s1) cmd _ _
+  monitoring (s0, s1) (ContractAction _ cmd) env res = monitoring @_ @m (s0, s1) cmd lookup res
+    where lookup token = case Map.lookup (symVarIdx token) (env (symVar token)) of
+                            Nothing  -> error $ "Unbound token: " ++ show token
+                            Just aid -> aid
   monitoring (s0, _) (WaitUntil n@(SlotNo _n)) _ _ =
     tabulate "Wait interval" (bucket 10 diff) .
     tabulate "Wait until" (bucket 10 _n)

@@ -188,7 +188,7 @@ pattern Actions :: [Act s] -> Actions s
 pattern Actions as <- Actions_ _ (Smart _ as) where
   Actions as = Actions_ [] (Smart 0 as)
 
-data Act s = Bind {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s }
+data Act s = Bind {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
            | NoBind {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
            | ActWaitUntil (StateModel.Var ()) SlotNo
 

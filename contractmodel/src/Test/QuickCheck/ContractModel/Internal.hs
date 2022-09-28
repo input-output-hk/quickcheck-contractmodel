@@ -86,15 +86,19 @@ instance ( IsRunnable m
          , RunModel state m
          ) => StateModel.RunModel (ModelState state) (RunMonad m) where
   perform st (ContractAction _ a) lookup = do
+      -- Takes a `SymToken` and turns it into an `AssetId`
       let translate token = case Map.lookup (symVarIdx token) (lookup $ symVar token) of
             Just assetId -> assetId
             Nothing      -> error $ "The impossible happend: uncaught missing registerToken call for token: " ++ show token
+      -- Run locally and get the registered tokens out
       tokens <- withLocalTokens $ perform st a translate
-      -- NOTE: using `0` here is safe because we know that `StateModel` never uses `0` and we
+      -- Ask the model what tokens we expected to be registered in this run.
+      -- NOTE: using `StateModel.Var 0` here is safe because we know that `StateModel` never uses `0` and we
       -- therefore get something unique. Likewise, we know that `nextState` can't observe the
       -- variables we use so it won't know the difference between having the real sym token
       -- it will get when we run `stateAfter` and this fake one.
       let expectedTokens = map symVarIdx $ tokensRegisterdBy (nextState a) (StateModel.Var 0) st
+      -- If we the `createToken` and `registerToken` tokens don't correspond we have an issue!
       when (sort (Map.keys tokens) /= sort expectedTokens) $
         fail $ "Expected tokens: [" ++ intercalate "," expectedTokens ++ "] got [" ++ intercalate "," (Map.keys tokens) ++ "]"
       pure tokens

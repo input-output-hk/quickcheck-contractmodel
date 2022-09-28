@@ -13,7 +13,7 @@ module Test.QuickCheck.ContractModel
   , toSymVal
   , inv
   , TokenLike(..)
-    -- The safe interface to `Spec`
+    -- * The safe interface to `Spec`
     --
     -- NOTE: we don't export internals here because we
     -- really don't want people seeing or changing the

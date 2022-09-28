@@ -5,6 +5,8 @@ module Test.QuickCheck.ContractModel.Internal.Model
   , toStateModelActions
   , pattern ContractAction
   , pattern WaitUntil
+  , varNumOf
+  , actionsFromList
   ) where
 import Control.Lens
 import Control.Monad.Reader
@@ -21,7 +23,6 @@ import Data.Data
 import Data.Maybe
 import Data.Generics.Uniplate.Data (universeBi)
 import Data.Map (Map)
-import Data.Map qualified as Map
 
 import Cardano.Api
 

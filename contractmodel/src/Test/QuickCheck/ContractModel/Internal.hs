@@ -4,22 +4,14 @@ module Test.QuickCheck.ContractModel.Internal where
 
 import Control.Lens
 import Control.Monad.Reader
-import Control.Monad.Writer as Writer
-import Control.Monad.State as State
 
 import Test.QuickCheck
-import Test.QuickCheck.Monadic
 import Test.QuickCheck.StateModel qualified as StateModel
 import Test.QuickCheck.ContractModel.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Spec
 import Test.QuickCheck.ContractModel.Internal.ChainIndex
 import Test.QuickCheck.ContractModel.Internal.Model
 import Test.QuickCheck.ContractModel.Internal.Common
-import Data.Set (Set)
-import Data.Set qualified as Set
-import Data.Data
-import Data.Maybe
-import Data.Generics.Uniplate.Data (universeBi)
 import Data.Map (Map)
 import Data.Map qualified as Map
 
@@ -56,11 +48,32 @@ class (Monad m, HasChainIndex m, ContractModel state) => RunModel state m where
 newtype RunMonad m a = RunMonad { unRunMonad :: m a }
   deriving (Functor, Applicative, Monad)
 
-instance ( Monad (RunMonad m)
+instance MonadTrans RunMonad where
+  lift = RunMonad
+
+type instance StateModel.Realized (RunMonad m) a = StateModel.Realized m a
+
+class ( StateModel.Realized m (Map String AssetId) ~ Map String AssetId
+      , StateModel.Realized m () ~ ()
+      , HasChainIndex m
+      , Monad m
+      ) => IsRunnable m where
+  waitUntil :: SlotNo -> m ()
+
+instance (Monad m, HasChainIndex m) => HasChainIndex (RunMonad m) where
+  getChainIndex = lift getChainIndex
+
+instance IsRunnable m => IsRunnable (RunMonad m) where
+  waitUntil = lift . waitUntil
+
+instance ( IsRunnable m
          , RunModel state m
-         , StateModel.Realized (RunMonad m) (Map String AssetId) ~ Map String AssetId
          ) => StateModel.RunModel (ModelState state) (RunMonad m) where
-  perform _ _ _ = _
+  perform st (ContractAction _ a) lookup = perform st a translate
+    where translate token = case Map.lookup (symVarIdx token) (lookup $ symVar token) of
+            Just assetId -> assetId
+            Nothing      -> error $ "Missing registerToken call for token: " ++ show token
+  perform _ (WaitUntil slot) _ = waitUntil slot
 
   monitoring (s0, s1) (ContractAction _ cmd) env res = monitoring @_ @m (s0, s1) cmd lookup res
     where lookup token = case Map.lookup (symVarIdx token) (env (symVar token)) of

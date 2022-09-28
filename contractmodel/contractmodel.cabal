@@ -59,7 +59,7 @@ library
       Test.QuickCheck.ContractModel.Internal.ChainIndex
       Test.QuickCheck.ContractModel.Internal.Hacks
       Test.QuickCheck.ContractModel.Internal.Spec
-      Test.QuickCheck.ContractModel.Symbolics
+      Test.QuickCheck.ContractModel.Internal.Symbolics
     -- General dependencies
     build-depends:
       base >=4.7 && <5,

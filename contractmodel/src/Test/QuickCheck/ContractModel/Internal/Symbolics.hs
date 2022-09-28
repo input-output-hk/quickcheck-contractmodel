@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
-module Test.QuickCheck.ContractModel.Symbolics where
+module Test.QuickCheck.ContractModel.Internal.Symbolics where
 
 import Cardano.Api
 
@@ -12,9 +12,9 @@ import Data.Data
 import Data.Maybe
 
 -- | A symbolic token is a token that exists only during ContractModel generation time
-data SymToken = SymToken { symVar    :: Var (Map String AssetId)
+data SymToken = SymToken { symVar    :: Var (Map String AssetId) -- TODO: this should not be exported to the public interface
                          , symVarIdx :: String
-                         } deriving (Ord, Eq, Data)
+                         } deriving (Eq, Ord, Data)
 
 -- | A symbolic value is a combination of a real value and a value associating symbolic
 -- tokens with an amount

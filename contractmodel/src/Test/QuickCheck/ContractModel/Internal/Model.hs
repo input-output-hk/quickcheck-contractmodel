@@ -13,7 +13,7 @@ import Control.Monad.State as State
 
 import Test.QuickCheck
 import Test.QuickCheck.StateModel qualified as StateModel
-import Test.QuickCheck.ContractModel.Symbolics
+import Test.QuickCheck.ContractModel.Internal.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Spec
 import Data.Set (Set)
 import Data.Set qualified as Set

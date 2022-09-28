@@ -9,7 +9,7 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Cardano.Api
-import Test.QuickCheck.ContractModel.Symbolics
+import Test.QuickCheck.ContractModel.Internal.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Common
 import Control.Lens
 import Data.Foldable
@@ -34,9 +34,6 @@ data ModelState state = ModelState
 instance Functor ModelState where
   fmap f m = m { _contractState = f (_contractState m) }
 
-dummyModelState :: state -> ModelState state
-dummyModelState s = ModelState 1 Map.empty mempty mempty mempty True s
-
 -- | The `Spec` monad is a state monad over the `ModelState` with reader and writer components to keep track
 --   of newly created symbolic tokens. It is used exclusively by the `nextState` function to model the effects
 --   of an action on the blockchain.
@@ -60,7 +57,6 @@ makeLensesFor [("_currentSlot",    "currentSlotL")]    'ModelState
 makeLensesFor [("_lastSlot",       "lastSlotL")]       'ModelState
 makeLensesFor [("_balanceChanges", "balanceChangesL")] 'ModelState
 makeLensesFor [("_minted",         "mintedL")]         'ModelState
-makeLensesFor [("_tokenNameIndex", "tokenNameIndex")]  'ModelState
 makeLensesFor [("_assertions", "assertions")]          'ModelState
 makeLensesFor [("_assertionsOk", "assertionsOk")]      'ModelState
 makeLensesFor [("_symTokens", "symTokens")]            'ModelState
@@ -143,6 +139,12 @@ runSpec :: Spec state ()
 runSpec (Spec spec) v s = flip State.execState s $ do
   w <- runReaderT (snd <$> Writer.runWriterT spec) v
   symTokens %= (Set.fromList w <>)
+
+tokensRegisterdBy :: Spec state ()
+                  -> Var (Map String AssetId)
+                  -> ModelState state
+                  -> [SymToken]
+tokensRegisterdBy (Spec spec) v s = flip State.evalState s $ runReaderT (snd <$> Writer.runWriterT spec) v
 
 -- | Mint tokens. Minted tokens start out as `lockedValue` (i.e. owned by the contract) and can be
 --   transferred to wallets using `deposit`.

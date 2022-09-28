@@ -8,13 +8,14 @@ import Control.Monad.Writer
 
 import Test.QuickCheck
 import Test.QuickCheck.StateModel qualified as StateModel
-import Test.QuickCheck.ContractModel.Symbolics
+import Test.QuickCheck.ContractModel.Internal.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Spec
 import Test.QuickCheck.ContractModel.Internal.ChainIndex
 import Test.QuickCheck.ContractModel.Internal.Model
 import Test.QuickCheck.ContractModel.Internal.Common
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.List
 
 import Cardano.Api
 
@@ -46,14 +47,22 @@ class (Monad m, HasChainIndex m, ContractModel state) => RunModel state m where
              -> Property
   monitoring _ _ _ _ prop = prop
 
-newtype RunMonad m a = RunMonad { unRunMonad :: WriterT (Map String AssetId) m a }
-  deriving (Functor, Applicative, Monad, MonadWriter (Map String AssetId))
+-- TODO: consider putting errors in this?
+newtype RunMonad m a = RunMonad { unRunMonad :: WriterT [(String, AssetId)] m a }
+  deriving (Functor, Applicative, Monad, MonadWriter [(String, AssetId)])
+
+instance Monad m => MonadFail (RunMonad m) where
+  fail = error
 
 registerToken :: Monad m => String -> AssetId -> RunMonad m ()
-registerToken s asset = tell (Map.singleton s asset)
+registerToken s asset = tell [(s, asset)]
 
 withLocalTokens :: Monad m => RunMonad m () -> RunMonad m (Map String AssetId)
-withLocalTokens = censor (const mempty) . fmap snd . listen
+withLocalTokens m = do
+  tokens <- censor (const mempty) . fmap snd . listen $ m
+  when (length tokens /= length (nub $ map fst tokens)) $
+    fail $ "Duplicate call to registerToken: " ++ show tokens
+  pure $ Map.fromList tokens
 
 instance MonadTrans RunMonad where
   lift = RunMonad . lift
@@ -77,10 +86,18 @@ instance ( IsRunnable m
          , RunModel state m
          ) => StateModel.RunModel (ModelState state) (RunMonad m) where
   perform st (ContractAction _ a) lookup = do
-      withLocalTokens $ perform st a translate
-    where translate token = case Map.lookup (symVarIdx token) (lookup $ symVar token) of
+      let translate token = case Map.lookup (symVarIdx token) (lookup $ symVar token) of
             Just assetId -> assetId
-            Nothing      -> error $ "Missing registerToken call for token: " ++ show token
+            Nothing      -> error $ "The impossible happend: uncaught missing registerToken call for token: " ++ show token
+      tokens <- withLocalTokens $ perform st a translate
+      -- NOTE: using `0` here is safe because we know that `StateModel` never uses `0` and we
+      -- therefore get something unique. Likewise, we know that `nextState` can't observe the
+      -- variables we use so it won't know the difference between having the real sym token
+      -- it will get when we run `stateAfter` and this fake one.
+      let expectedTokens = map symVarIdx $ tokensRegisterdBy (nextState a) (StateModel.Var 0) st
+      when (sort (Map.keys tokens) /= sort expectedTokens) $
+        fail $ "Expected tokens: [" ++ intercalate "," expectedTokens ++ "] got [" ++ intercalate "," (Map.keys tokens) ++ "]"
+      pure tokens
   perform _ (WaitUntil slot) _ = waitUntil slot
 
   monitoring (s0, s1) (ContractAction _ cmd) env res = monitoring @_ @m (s0, s1) cmd lookup res

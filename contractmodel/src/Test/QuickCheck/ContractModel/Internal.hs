@@ -4,6 +4,7 @@ module Test.QuickCheck.ContractModel.Internal where
 
 import Control.Lens
 import Control.Monad.Reader
+import Control.Monad.Writer
 
 import Test.QuickCheck
 import Test.QuickCheck.StateModel qualified as StateModel
@@ -31,7 +32,7 @@ class (Monad m, HasChainIndex m, ContractModel state) => RunModel state m where
   perform :: ModelState state
           -> Action state
           -> (SymToken -> AssetId)
-          -> RunMonad m (Map String AssetId)
+          -> RunMonad m ()
 
   -- | Allows the user to attach information to the `Property` at each step of the process.
   -- This function is given the full transition that's been executed, including the start and ending
@@ -45,11 +46,17 @@ class (Monad m, HasChainIndex m, ContractModel state) => RunModel state m where
              -> Property
   monitoring _ _ _ _ prop = prop
 
-newtype RunMonad m a = RunMonad { unRunMonad :: m a }
-  deriving (Functor, Applicative, Monad)
+newtype RunMonad m a = RunMonad { unRunMonad :: WriterT (Map String AssetId) m a }
+  deriving (Functor, Applicative, Monad, MonadWriter (Map String AssetId))
+
+registerToken :: Monad m => String -> AssetId -> RunMonad m ()
+registerToken s asset = tell (Map.singleton s asset)
+
+withLocalTokens :: Monad m => RunMonad m () -> RunMonad m (Map String AssetId)
+withLocalTokens = censor (const mempty) . fmap snd . listen
 
 instance MonadTrans RunMonad where
-  lift = RunMonad
+  lift = RunMonad . lift
 
 type instance StateModel.Realized (RunMonad m) a = StateModel.Realized m a
 
@@ -69,7 +76,8 @@ instance IsRunnable m => IsRunnable (RunMonad m) where
 instance ( IsRunnable m
          , RunModel state m
          ) => StateModel.RunModel (ModelState state) (RunMonad m) where
-  perform st (ContractAction _ a) lookup = perform st a translate
+  perform st (ContractAction _ a) lookup = do
+      withLocalTokens $ perform st a translate
     where translate token = case Map.lookup (symVarIdx token) (lookup $ symVar token) of
             Just assetId -> assetId
             Nothing      -> error $ "Missing registerToken call for token: " ++ show token

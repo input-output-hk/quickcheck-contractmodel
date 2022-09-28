@@ -106,5 +106,4 @@ instance ( IsRunnable m
 -- TODO: assert that chain index results match model state results?
 -- * Here we need to deal with the issues around min ada etc.
 -- * Here we might want flexibility - given that we now have postconditions
--- TODO: ContractModel.RunModel class
 -- TODO: DL stuff?

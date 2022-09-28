@@ -5,8 +5,6 @@ module Test.QuickCheck.ContractModel.Internal.Model
   , toStateModelActions
   , pattern ContractAction
   , pattern WaitUntil
-  , varNumOf
-  , actionsFromList
   ) where
 import Control.Lens
 import Control.Monad.Reader
@@ -198,13 +196,6 @@ deriving instance ContractModel s => Eq (Act s)
 isBind :: Act s -> Bool
 isBind Bind{} = True
 isBind _      = False
-
-actionsFromList :: [Action s] -> Actions s
-actionsFromList = Actions . zipWith NoBind (StateModel.Var <$> [0..])
-
-varNumOf :: Act s -> Int
-varNumOf (ActWaitUntil (StateModel.Var i) _) = i
-varNumOf act | StateModel.Var i <- varOf act = i
 
 instance ContractModel state => Show (Act state) where
   showsPrec d (Bind (StateModel.Var i) a) = showParen (d >= 11) $ showString ("tok" ++ show i ++ " := ") . showsPrec 0 a

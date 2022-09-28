@@ -19,6 +19,23 @@ module Test.QuickCheck.ContractModel
     -- really don't want people seeing or changing the
     -- sensitive parts of the model.
   , Spec
+  , GetModelState(..)
+  , currentSlot
+  , balanceChanges
+  , balanceChange
+  , minted
+  , lockedValue
+  , getContractState
+  , askModelState
+  , askContractState
+  , viewModelState
+  , viewContractState
+  , mint
+  , burn
+  , deposit
+  , withdraw
+  , transfer
+  , assertSpec
   ) where
 
 import Test.QuickCheck.ContractModel.Internal.Spec

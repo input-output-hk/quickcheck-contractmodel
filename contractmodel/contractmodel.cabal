@@ -71,11 +71,6 @@ library
     build-depends:
       QuickCheck -any,
       quickcheck-dynamic >= 2.0.0,
-      quickcheck-dynamic-iosim
-    -- IOSim dependencies
-    build-depends:
-      io-classes,
-      io-sim
     -- Plutus and Cardano dependencies
     build-depends:
       plutus-ledger-api,

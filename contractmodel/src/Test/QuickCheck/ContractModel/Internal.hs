@@ -7,6 +7,7 @@ import Control.Monad.Reader
 import Control.Monad.Writer
 
 import Test.QuickCheck
+import Test.QuickCheck.Monadic
 import Test.QuickCheck.StateModel qualified as StateModel
 import Test.QuickCheck.ContractModel.Internal.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Spec
@@ -16,10 +17,11 @@ import Test.QuickCheck.ContractModel.Internal.Common
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List
+import Data.Typeable
 
 import Cardano.Api
 
-class (Monad m, HasChainIndex m, ContractModel state) => RunModel state m where
+class (ContractModel state, IsRunnable m) => RunModel state m where
   -- | Perform an `Action` in some `state` in the `Monad` `m`.  This
   -- is the function that's used to exercise the actual stateful
   -- implementation, usually through various side-effects as permitted
@@ -113,16 +115,28 @@ instance ( IsRunnable m
     tabulate "Wait until" (bucket 10 _n)
     where SlotNo diff = n - s0 ^. currentSlot
 
--- evaluteContractModel :: ( ContractModel state
---                         , RunModel state m
---                         )
---                      => Actions state
---                      -> PropertyM m (ModelState state, Map SymToken AssetId, ChainIndex) -- TODO: some datatype here?
--- evaluteContractModel as = do
---   ci <- run getChainIndex
---   (st, env) <- StateModel.runActions $ toStateModelActions as
---   ci' <- run getChainIndex
---   return (st, env, ci <> ci')
+data ContractModelResult state = ContractModelResult
+  { finalModelState :: ModelState state
+  , symbolicTokens  :: Map SymToken AssetId
+  , finalChainIndex :: ChainIndex
+  }
+
+runContractModel :: (ContractModel state, RunModel state m)
+                 => Actions state
+                 -> PropertyM (RunMonad m) (ContractModelResult state)
+runContractModel as = do
+  ci <- run getChainIndex
+  (st, env) <- StateModel.runActions $ toStateModelActions as
+  ci' <- run getChainIndex
+  return $ ContractModelResult { finalModelState = st
+                               -- TODO: update this code to use `:=?` when that is merged to qc-d
+                               , symbolicTokens = Map.fromList $ [ (SymToken v s, ai)
+                                                                 | (StateModel.:==) (v :: StateModel.Var a) m <- env
+                                                                 , Just Refl <- [eqT @a @(Map String AssetId)]
+                                                                 , (s, ai) <- Map.toList m
+                                                                 ]
+                               , finalChainIndex = ci <> ci'
+                               }
 
 -- TODO: assert that chain index results match model state results?
 -- * Here we need to deal with the issues around min ada etc.

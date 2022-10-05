@@ -128,7 +128,6 @@ runContractModel as = do
   (st, env) <- StateModel.runActions $ toStateModelActions as
   ci        <- run getChainIndex
   return $ ContractModelResult { finalModelState = st
-                               -- TODO: update this code to use `:=?` when that is merged to qc-d
                                , symbolicTokens = Map.fromList $ [ (SymToken v s, ai)
                                                                  | v StateModel.:=? m <- env
                                                                  , (s, ai) <- Map.toList m

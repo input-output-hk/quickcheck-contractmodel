@@ -130,8 +130,7 @@ runContractModel as = do
   return $ ContractModelResult { finalModelState = st
                                -- TODO: update this code to use `:=?` when that is merged to qc-d
                                , symbolicTokens = Map.fromList $ [ (SymToken v s, ai)
-                                                                 | (StateModel.:==) (v :: StateModel.Var a) m <- env
-                                                                 , Just Refl <- [eqT @a @(Map String AssetId)]
+                                                                 | v StateModel.:=? m <- env
                                                                  , (s, ai) <- Map.toList m
                                                                  ]
                                , finalChainIndex = ci

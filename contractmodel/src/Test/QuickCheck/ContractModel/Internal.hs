@@ -128,6 +128,9 @@ runContractModel as = do
   (st, env) <- StateModel.runActions $ toStateModelActions as
   ci        <- run getChainIndex
   return $ ContractModelResult { finalModelState = st
+                               -- Note, this is safe because we know what actions there
+                               -- are at the StateModel level - only waits and underlying
+                               -- actions that return new symtokens.
                                , symbolicTokens = Map.fromList $ [ (SymToken v s, ai)
                                                                  | v StateModel.:=? m <- env
                                                                  , (s, ai) <- Map.toList m

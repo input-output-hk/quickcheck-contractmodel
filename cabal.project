@@ -12,6 +12,7 @@ source-repository-package
   subdir:
     io-classes
     io-sim
+    strict-stm
 
 -- TODO: remove once quickcheck-dynamic v2 is on hackage
 source-repository-package
@@ -22,6 +23,16 @@ source-repository-package
   subdir:
     quickcheck-dynamic
     quickcheck-dynamic-iosim
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/typed-protocols
+  tag: 254a4f8520ff58bb80bf1468d279391c6002436e
+  --sha256: 1jpdlks39s9yih96kadzb6va0ag7c1l9510a0q98bj7gksng4218
+  subdir:
+    typed-protocols
+    typed-protocols-cborg
+    typed-protocols-examples
 
 -- NOTE: master somewhere ahead of 1.35.x, but holding enough of our upstream
 -- contributions to use for us
@@ -173,16 +184,6 @@ source-repository-package
     ouroboros-network
     ouroboros-network-framework
     ouroboros-network-testing
-
-source-repository-package
-  type: git
-  location: https://github.com/input-output-hk/typed-protocols
-  tag: 181601bc3d9e9d21a671ce01e0b481348b3ca104
-  --sha256: 1lr97b2z7l0rpsmmz92rsv27qzd5vavz10cf7n25svya4kkiysp5
-  subdir:
-    typed-protocols
-    typed-protocols-cborg
-    typed-protocols-examples
 
 -- Tracking cardano-node
 source-repository-package

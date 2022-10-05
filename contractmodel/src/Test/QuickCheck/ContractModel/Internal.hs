@@ -125,9 +125,8 @@ runContractModel :: (ContractModel state, RunModel state m)
                  => Actions state
                  -> PropertyM (RunMonad m) (ContractModelResult state)
 runContractModel as = do
-  ci <- run getChainIndex
   (st, env) <- StateModel.runActions $ toStateModelActions as
-  ci' <- run getChainIndex
+  ci        <- run getChainIndex
   return $ ContractModelResult { finalModelState = st
                                -- TODO: update this code to use `:=?` when that is merged to qc-d
                                , symbolicTokens = Map.fromList $ [ (SymToken v s, ai)
@@ -135,7 +134,7 @@ runContractModel as = do
                                                                  , Just Refl <- [eqT @a @(Map String AssetId)]
                                                                  , (s, ai) <- Map.toList m
                                                                  ]
-                               , finalChainIndex = ci <> ci'
+                               , finalChainIndex = ci
                                }
 
 -- TODO: assert that chain index results match model state results?

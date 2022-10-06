@@ -60,3 +60,4 @@ txBalanceChanges (TxInState tx ChainState{..}) =
                         | TxOut a v _ _ <- getTxInputs tx utxo
                         ]
 
+-- TODO: here we need to deal with fees

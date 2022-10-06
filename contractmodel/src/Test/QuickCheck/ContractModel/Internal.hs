@@ -17,7 +17,6 @@ import Test.QuickCheck.ContractModel.Internal.Common
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List
-import Data.Typeable
 
 import Cardano.Api
 
@@ -93,23 +92,33 @@ instance ( IsRunnable m
             Just assetId -> assetId
             Nothing      -> error $ "The impossible happend: uncaught missing registerToken call for token: " ++ show token
       -- Run locally and get the registered tokens out
-      tokens <- withLocalTokens $ perform st a translate
-      -- Ask the model what tokens we expected to be registered in this run.
-      -- NOTE: using `StateModel.Var 0` here is safe because we know that `StateModel` never uses `0` and we
-      -- therefore get something unique. Likewise, we know that `nextState` can't observe the
-      -- variables we use so it won't know the difference between having the real sym token
-      -- it will get when we run `stateAfter` and this fake one.
-      let expectedTokens = map symVarIdx $ tokensRegisterdBy (nextState a) (StateModel.Var 0) st
-      -- If we the `createToken` and `registerToken` tokens don't correspond we have an issue!
-      when (sort (Map.keys tokens) /= sort expectedTokens) $
-        fail $ "Expected tokens: [" ++ intercalate "," expectedTokens ++ "] got [" ++ intercalate "," (Map.keys tokens) ++ "]"
-      pure tokens
+      withLocalTokens $ perform st a translate
   perform _ (WaitUntil slot) _ = waitUntil slot
 
-  monitoring (s0, s1) (ContractAction _ cmd) env res = monitoring @_ @m (s0, s1) cmd lookup res
+  postcondition (st, _) (ContractAction _ act) _ tokens = do
+    -- Ask the model what tokens we expected to be registered in this run.
+    -- NOTE: using `StateModel.Var 0` here is safe because we know that `StateModel` never uses `0` and we
+    -- therefore get something unique. Likewise, we know that `nextState` can't observe the
+    -- variables we use so it won't know the difference between having the real sym token
+    -- it will get when we run `stateAfter` and this fake one.
+    let expectedTokens = map symVarIdx $ tokensRegisterdBy (nextState act) (StateModel.Var 0) st
+    -- If we the `createToken` and `registerToken` tokens don't correspond we have an issue!
+    pure $ sort (Map.keys tokens) /= sort expectedTokens
+  -- TODO: maybe add that current slot should equal the awaited slot?
+  postcondition _ _ _ _ = pure True
+
+  -- TODO: a bit of code smell here because we don't have a nice solution to the
+  -- counterexample in postcondition issue
+  monitoring (s0, s1) (ContractAction _ act) env tokens =
+      tokenCounterexample
+    . monitoring @_ @m (s0, s1) act lookup tokens
     where lookup token = case Map.lookup (symVarIdx token) (env (symVar token)) of
                             Nothing  -> error $ "Unbound token: " ++ show token
                             Just aid -> aid
+          expectedTokens = map symVarIdx $ tokensRegisterdBy (nextState act) (StateModel.Var 0) s0
+          tokenCounterexample
+           | sort (Map.keys tokens) /= sort expectedTokens = counterexample ("Expected tokens: [" ++ intercalate "," expectedTokens ++ "] got [" ++ intercalate "," (Map.keys tokens) ++ "]")
+           | otherwise = id
   monitoring (s0, _) (WaitUntil n@(SlotNo _n)) _ _ =
     tabulate "Wait interval" (bucket 10 diff) .
     tabulate "Wait until" (bucket 10 _n)

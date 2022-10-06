@@ -18,6 +18,7 @@ import Test.QuickCheck.ContractModel.Internal.Utils
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List
+import Data.Maybe
 
 import Cardano.Api
 
@@ -147,6 +148,21 @@ runContractModel as = do
                                                                  ]
                                , finalChainIndex = ci
                                }
+
+-- TODO: this isn't complete yet, we don't account for:
+-- * Fees
+-- * Min ada
+assertBalanceChangesMatch :: ContractModelResult state -> Property
+assertBalanceChangesMatch ContractModelResult{..} =
+  let symbolicBalanceChanges = _balanceChanges finalModelState
+      predictedBalanceChanges = toValue (fromJust . flip Map.lookup symbolicTokens) <$> symbolicBalanceChanges
+      actualBalanceChanges    = getBalanceChanges finalChainIndex
+      text = unlines [ "Balance changes don't match:"
+                     , "  Predicted symbolic balance changes: " ++ show symbolicBalanceChanges
+                     , "  Predicted actual balance changes: " ++ show predictedBalanceChanges
+                     , "  Actual balance changes: " ++ show actualBalanceChanges
+                     ]
+  in counterexample text $ property $ predictedBalanceChanges == actualBalanceChanges
 
 -- TODO:
 -- * Assert that chain index results match model state results:

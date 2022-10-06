@@ -138,7 +138,10 @@ runContractModel as = do
                                , finalChainIndex = ci
                                }
 
--- TODO: assert that chain index results match model state results?
--- * Here we need to deal with the issues around min ada etc.
--- * Here we might want flexibility - given that we now have postconditions
+-- TODO:
+-- * Assert that chain index results match model state results:
+--    - Balance changes match the balance changes on chain net of
+--      fees and up to min ada
+-- * Copy over other stuff from plutus-apps that we need?
+-- * Depend on sane version of cardano-api from hydra guys
 -- TODO: DL stuff?

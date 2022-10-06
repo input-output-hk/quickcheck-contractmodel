@@ -47,11 +47,21 @@ allMinUTxO ci params =
   , Right v <- [calculateMinimumUTxO era txOut params]
   ]
 
-getBalanceChanges :: ChainIndex
-                  -> Map (AddressInEra Era) Value
-getBalanceChanges = foldr (Map.unionWith (<>)) mempty . map txBalanceChanges . transactions
+type FeeCalculation = TxInState -> Map (AddressInEra Era) Value
 
-txBalanceChanges :: TxInState -> Map (AddressInEra Era) Value
+signerPaysFees :: FeeCalculation
+signerPaysFees TxInState{..} = _
+
+-- TODO: what about failing transactions?
+getBalanceChangesWithoutFees :: ChainIndex
+                             -> FeeCalculation
+                             -> Map (AddressInEra Era) Value
+getBalanceChangesWithoutFees ChainIndex{..} computeFees =
+  foldr (Map.unionWith (<>)) mempty $  map txBalanceChanges transactions
+                                    ++ map computeFees transactions
+
+txBalanceChanges :: TxInState
+                 -> Map (AddressInEra Era) Value
 txBalanceChanges (TxInState tx ChainState{..}) =
   Map.unionsWith (<>) $ [ Map.singleton a (txOutValueToValue v)
                         | TxOut a v _ _ <- getTxOuts tx
@@ -59,5 +69,3 @@ txBalanceChanges (TxInState tx ChainState{..}) =
                         [ Map.singleton a (negateValue $ txOutValueToValue v)
                         | TxOut a v _ _ <- getTxInputs tx utxo
                         ]
-
--- TODO: here we need to deal with fees

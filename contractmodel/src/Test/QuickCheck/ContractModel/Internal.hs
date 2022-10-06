@@ -14,6 +14,7 @@ import Test.QuickCheck.ContractModel.Internal.Spec
 import Test.QuickCheck.ContractModel.Internal.ChainIndex
 import Test.QuickCheck.ContractModel.Internal.Model
 import Test.QuickCheck.ContractModel.Internal.Utils
+import Test.QuickCheck.ContractModel.Internal.Common
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List
@@ -151,11 +152,13 @@ runContractModel as = do
 -- TODO: this isn't complete yet, we don't account for:
 -- * Fees
 -- * Min ada
-assertBalanceChangesMatch :: ContractModelResult state -> Property
-assertBalanceChangesMatch ContractModelResult{..} =
-  let symbolicBalanceChanges = _balanceChanges finalModelState
+assertBalanceChangesMatch :: ContractModelResult state
+                          -> FeeCalculation
+                          -> Property
+assertBalanceChangesMatch ContractModelResult{..} computeFees =
+  let symbolicBalanceChanges  = _balanceChanges finalModelState
       predictedBalanceChanges = toValue (fromJust . flip Map.lookup symbolicTokens) <$> symbolicBalanceChanges
-      actualBalanceChanges    = getBalanceChanges finalChainIndex
+      actualBalanceChanges    = getBalanceChangesWithoutFees finalChainIndex computeFees
       text = unlines [ "Balance changes don't match:"
                      , "  Predicted symbolic balance changes: " ++ show symbolicBalanceChanges
                      , "  Predicted actual balance changes: " ++ show predictedBalanceChanges

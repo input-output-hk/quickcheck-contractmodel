@@ -14,6 +14,7 @@ import Test.QuickCheck.ContractModel.Internal.Spec
 import Test.QuickCheck.ContractModel.Internal.ChainIndex
 import Test.QuickCheck.ContractModel.Internal.Model
 import Test.QuickCheck.ContractModel.Internal.Common
+import Test.QuickCheck.ContractModel.Internal.Utils
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List

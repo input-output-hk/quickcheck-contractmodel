@@ -2,9 +2,13 @@ module Test.QuickCheck.ContractModel.Internal.ChainIndex where
 
 import Data.Ord
 import Data.List
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Cardano.Api
+import Cardano.Api.Shelley
 
 import Test.QuickCheck.ContractModel.Internal.Common
+import Test.QuickCheck.ContractModel.Internal.Utils
 
 data ChainState = ChainState
   { slot :: SlotNo
@@ -32,3 +36,27 @@ instance Semigroup ChainIndex where
 
 class HasChainIndex m where
   getChainIndex :: m ChainIndex
+
+allMinUTxO :: ChainIndex
+           -> ProtocolParameters
+           -> [Lovelace]
+allMinUTxO ci params =
+  [ selectLovelace v
+  | TxInState{..} <- transactions ci
+  , txOut <- getTxOuts tx
+  , Right v <- [calculateMinimumUTxO era txOut params]
+  ]
+
+getBalanceChanges :: ChainIndex
+                  -> Map (AddressInEra Era) Value
+getBalanceChanges = foldr (Map.unionWith (<>)) mempty . map txBalanceChanges . transactions
+
+txBalanceChanges :: TxInState -> Map (AddressInEra Era) Value
+txBalanceChanges (TxInState tx ChainState{..}) =
+  Map.unionsWith (<>) $ [ Map.singleton a (txOutValueToValue v)
+                        | TxOut a v _ _ <- getTxOuts tx
+                        ] ++
+                        [ Map.singleton a (negateValue $ txOutValueToValue v)
+                        | TxOut a v _ _ <- getTxInputs tx utxo
+                        ]
+

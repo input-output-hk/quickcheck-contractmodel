@@ -150,7 +150,6 @@ runContractModel as = do
                                }
 
 -- TODO: this isn't complete yet, we don't account for:
--- * Fees
 -- * Min ada
 assertBalanceChangesMatch :: ContractModelResult state
                           -> FeeCalculation

@@ -6,6 +6,9 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Cardano.Api
 import Cardano.Api.Shelley
+import Cardano.Ledger.Keys
+import Cardano.Ledger.WitVKey
+import Cardano.Ledger.Address
 
 import Test.QuickCheck.ContractModel.Internal.Common
 import Test.QuickCheck.ContractModel.Internal.Utils
@@ -50,7 +53,13 @@ allMinUTxO ci params =
 type FeeCalculation = TxInState -> Map (AddressInEra Era) Value
 
 signerPaysFees :: FeeCalculation
-signerPaysFees TxInState{..} = _
+signerPaysFees TxInState{..} = undefined
+  where
+    addr :: KeyWitness Era -> Address ShelleyAddr
+    addr wit = makeShelleyAddress _ (keyHashObj wit) NoStakeAddress
+    keyHashObj :: KeyWitness Era -> _
+    keyHashObj (ShelleyKeyWitness _ wit) =
+      KeyHashObj $ coerceKeyRole $ hashKey $ wvkKey wit
 
 -- TODO: what about failing transactions?
 getBalanceChangesWithoutFees :: ChainIndex

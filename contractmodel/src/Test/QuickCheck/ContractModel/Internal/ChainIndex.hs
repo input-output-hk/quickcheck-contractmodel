@@ -7,8 +7,10 @@ import Data.Map qualified as Map
 import Cardano.Api
 import Cardano.Api.Shelley
 import Cardano.Ledger.Keys
-import Cardano.Ledger.WitVKey
+import Cardano.Ledger.Keys.WitVKey
 import Cardano.Ledger.Address
+import Cardano.Ledger.Credential hiding (PaymentCredential)
+import Cardano.Ledger.Crypto
 
 import Test.QuickCheck.ContractModel.Internal.Common
 import Test.QuickCheck.ContractModel.Internal.Utils
@@ -53,13 +55,19 @@ allMinUTxO ci params =
 type FeeCalculation = TxInState -> Map (AddressInEra Era) Value
 
 signerPaysFees :: FeeCalculation
-signerPaysFees TxInState{..} = undefined
-  where
-    addr :: KeyWitness Era -> Address ShelleyAddr
-    addr wit = makeShelleyAddress _ (keyHashObj wit) NoStakeAddress
-    keyHashObj :: KeyWitness Era -> _
-    keyHashObj (ShelleyKeyWitness _ wit) =
-      KeyHashObj $ coerceKeyRole $ hashKey $ wvkKey wit
+signerPaysFees TxInState{..} = _
+
+-- TODO: is this really safe?? also - why is this so complicated??
+mkAddrFromWitness :: KeyWitness Era -> Address ShelleyAddr
+mkAddrFromWitness wit = makeShelleyAddress Mainnet
+                                           (keyHashObj wit)
+                                           NoStakeAddress
+  where keyHashObj :: KeyWitness Era -> PaymentCredential
+        keyHashObj (ShelleyKeyWitness _ wit) =
+            PaymentCredentialByKey
+          $ PaymentKeyHash
+          $ coerceKeyRole -- TODO: is this really safe?!?!?!
+          $ witVKeyHash wit
 
 -- TODO: what about failing transactions?
 getBalanceChangesWithoutFees :: ChainIndex

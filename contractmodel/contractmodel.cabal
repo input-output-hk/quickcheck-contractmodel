@@ -43,6 +43,7 @@ common lang
     GeneralizedNewtypeDeriving
     PolyKinds
     TemplateHaskell
+    DataKinds
 
   ghc-options:
     -Wall -Wnoncanonical-monad-instances -Wunused-packages
@@ -78,4 +79,5 @@ library
     build-depends:
       plutus-ledger-api,
       plutus-tx,
-      cardano-api
+      cardano-api,
+      cardano-ledger-core

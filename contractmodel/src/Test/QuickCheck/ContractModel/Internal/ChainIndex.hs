@@ -55,7 +55,7 @@ allMinUTxO ci params =
 type FeeCalculation = TxInState -> Map (AddressInEra Era) Value
 
 signerPaysFees :: FeeCalculation
-signerPaysFees TxInState{..} = _
+signerPaysFees TxInState{..} = undefined 
 
 -- TODO: is this really safe?? also - why is this so complicated??
 mkAddrFromWitness :: KeyWitness Era -> Address ShelleyAddr

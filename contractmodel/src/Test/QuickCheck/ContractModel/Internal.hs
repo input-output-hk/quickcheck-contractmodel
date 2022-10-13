@@ -170,5 +170,5 @@ assertBalanceChangesMatch ContractModelResult{..} computeFees =
 --    - Balance changes match the balance changes on chain net of
 --      fees and up to min ada
 -- * Copy over other stuff from plutus-apps that we need?
--- * Depend on sane version of cardano-api from hydra guys
+-- * Update the dependency in plutus-apps to work with this repo
 -- TODO: DL stuff?

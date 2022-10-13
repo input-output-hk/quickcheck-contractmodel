@@ -19,16 +19,60 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Data
 import Data.Maybe
-import Data.Generics.Uniplate.Data (universeBi)
 import Data.Map (Map)
+import Data.Map qualified as Map
+import GHC.Generics as Generic
 
 import Cardano.Api
 
-class (Eq (Action state), Show (Action state)) => HasActions state where
-  getAllSymtokens :: Action state -> Set SymToken
+type HasActions state = ( Eq (Action state)
+                        , Show (Action state)
+                        , HasSymTokens (Action state)
+                        )
 
-instance {-# OVERLAPPABLE #-} (Eq (Action state), Show (Action state), Data (Action state)) => HasActions state where
-  getAllSymtokens = Set.fromList . universeBi
+class HasSymTokens a where
+  getAllSymTokens :: a -> Set SymToken
+
+  default getAllSymTokens :: (Generic a, GenericHasSymTokens (Rep a)) => a -> Set SymToken
+  getAllSymTokens = genericGetAllSymTokens . Generic.from
+
+newtype BaseType a = BaseType a
+
+instance HasSymTokens SymToken where
+  getAllSymTokens = Set.singleton
+
+instance HasSymTokens (BaseType a) where
+  getAllSymTokens _ = mempty
+
+deriving via BaseType Integer  instance HasSymTokens Integer
+deriving via BaseType Int      instance HasSymTokens Int
+deriving via BaseType Char     instance HasSymTokens Char
+deriving via BaseType Value    instance HasSymTokens Value
+deriving via BaseType Quantity instance HasSymTokens Quantity
+
+instance (HasSymTokens k, HasSymTokens v) => HasSymTokens (Map k v) where
+  getAllSymTokens = getAllSymTokens . Map.toList
+
+instance {-# OVERLAPPABLE #-} (Generic a, GenericHasSymTokens (Rep a)) => HasSymTokens a
+
+class GenericHasSymTokens f where
+  genericGetAllSymTokens :: f k -> Set SymToken
+
+instance GenericHasSymTokens f => GenericHasSymTokens (M1 i c f) where
+  genericGetAllSymTokens = genericGetAllSymTokens . unM1
+
+instance HasSymTokens c => GenericHasSymTokens (K1 i c) where
+  genericGetAllSymTokens = getAllSymTokens . unK1
+
+instance GenericHasSymTokens U1 where
+  genericGetAllSymTokens _ = mempty
+
+instance (GenericHasSymTokens f, GenericHasSymTokens g) => GenericHasSymTokens (f :*: g) where
+  genericGetAllSymTokens (x :*: y) = genericGetAllSymTokens x <> genericGetAllSymTokens y
+
+instance (GenericHasSymTokens f, GenericHasSymTokens g) => GenericHasSymTokens (f :+: g) where
+  genericGetAllSymTokens (L1 x) = genericGetAllSymTokens x
+  genericGetAllSymTokens (R1 x) = genericGetAllSymTokens x
 
 -- | A `ContractModel` instance captures everything that is needed to generate and run tests of a
 --   contract or set of contracts. It specifies among other things
@@ -104,7 +148,8 @@ createsTokens :: ContractModel state
               => ModelState state
               -> Action state
               -> Bool
-createsTokens s a = ([] /=) $ State.evalState (runReaderT (snd <$> Writer.runWriterT (unSpec (nextState a))) (StateModel.Var 0)) s
+createsTokens s a = ([] /=) $ State.evalState (runReaderT (snd <$> Writer.runWriterT (unSpec (nextState a)))
+                                                          (StateModel.Var 0)) s
 
 -- | Wait the given number of slots. Updates the `currentSlot` of the model state.
 wait :: ContractModel state => Integer -> Spec state ()
@@ -171,12 +216,12 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
   nextState s (WaitUntil n) _          = runSpec (() <$ waitUntil n) (error "unreachable") s
 
   -- Note that the order of the preconditions in this case matter - we want to run
-  -- `getAllSymtokens` last because its likely to be stricter than the user precondition
+  -- `getAllSymTokens` last because its likely to be stricter than the user precondition
   -- and so if the user relies on the lazyness of the Gen monad by using the precondition
   -- to avoid duplicate checks in the precondition and generator we don't screw that up.
   precondition s (ContractAction _ cmd) = s ^. assertionsOk
                                         && precondition s cmd
-                                        && getAllSymtokens cmd `Set.isSubsetOf` (s ^. symTokens)
+                                        && getAllSymTokens cmd `Set.isSubsetOf` (s ^. symTokens)
   precondition s (WaitUntil n)          = n > s ^. currentSlot
 
 -- We include a list of rejected action names.
@@ -187,7 +232,7 @@ pattern Actions :: [Act s] -> Actions s
 pattern Actions as <- Actions_ _ (Smart _ as) where
   Actions as = Actions_ [] (Smart 0 as)
 
-data Act s = Bind {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
+data Act s = Bind   {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
            | NoBind {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
            | ActWaitUntil (StateModel.Var ()) SlotNo
 

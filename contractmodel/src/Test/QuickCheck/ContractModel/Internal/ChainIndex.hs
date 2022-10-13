@@ -55,7 +55,7 @@ allMinUTxO ci params =
 type FeeCalculation = TxInState -> Map (AddressInEra Era) Value
 
 signerPaysFees :: FeeCalculation
-signerPaysFees TxInState{..} = _
+signerPaysFees TxInState{} = error "TODO: signerPaysFees"
 
 -- TODO: is this really safe?? also - why is this so complicated??
 mkAddrFromWitness :: KeyWitness Era -> Address ShelleyAddr
@@ -68,6 +68,7 @@ mkAddrFromWitness wit = makeShelleyAddress Mainnet
           $ PaymentKeyHash
           $ coerceKeyRole -- TODO: is this really safe?!?!?!
           $ witVKeyHash wit
+        keyHashObj ShelleyBootstrapWitness{} = error "keyHashObj: ShelleyBootstrapWitness{}"
 
 -- TODO: what about failing transactions?
 getBalanceChangesWithoutFees :: ChainIndex

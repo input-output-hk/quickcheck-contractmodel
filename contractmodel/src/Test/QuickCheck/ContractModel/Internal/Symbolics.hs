@@ -10,17 +10,19 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Data
 import Data.Maybe
+import GHC.Generics
 
 -- | A symbolic token is a token that exists only during ContractModel generation time
 data SymToken = SymToken { symVar    :: Var (Map String AssetId) -- TODO: this should not be exported to the public interface
                          , symVarIdx :: String
-                         } deriving (Eq, Ord, Data)
+                         } deriving (Eq, Ord)
 
 -- | A symbolic value is a combination of a real value and a value associating symbolic
 -- tokens with an amount
 data SymValue = SymValue { symValMap     :: Map SymToken Quantity
                          , actualValPart :: Value
-                         } deriving (Show, Data)
+                         }
+  deriving (Show, Generic)
 
 instance Show SymToken where
   show (SymToken (Var i) n) = "tok" ++ show i ++ "." ++ n

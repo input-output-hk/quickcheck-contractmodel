@@ -44,6 +44,11 @@ common lang
     PolyKinds
     TemplateHaskell
     DataKinds
+    DefaultSignatures
+    ConstraintKinds
+    DeriveGeneric
+    DerivingVia
+    TypeOperators
 
   ghc-options:
     -Wall -Wnoncanonical-monad-instances -Wunused-packages
@@ -70,7 +75,6 @@ library
       containers,
       lens,
       mtl,
-      uniplate
     -- QuickCheck dependencies
     build-depends:
       QuickCheck -any,

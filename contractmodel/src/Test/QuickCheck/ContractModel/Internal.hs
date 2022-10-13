@@ -172,3 +172,4 @@ assertBalanceChangesMatch ContractModelResult{..} computeFees =
 -- * Copy over other stuff from plutus-apps that we need?
 -- * Update the dependency in plutus-apps to work with this repo
 -- TODO: DL stuff?
+--          actions should return the symtokens created

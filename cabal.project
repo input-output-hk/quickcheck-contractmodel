@@ -17,8 +17,8 @@ source-repository-package
 -- contributions to use for us
 source-repository-package
   type: git
-  location: https://github.com/input-output-hk/cardano-node.git
-  tag: 4375bf7bc30c415dfbbd308219598c9befcd0109
+  location: https://github.com/Quviq/cardano-node.git
+  tag: 65556867ad331fc68b1e150f4f9fc17ba1f4401e
   --sha256: 13i04x3481jq7xrxdkg6wq24c9i86xv6dj5lq2lnw1qm2shf3crk
   subdir:
     cardano-api

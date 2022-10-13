@@ -65,7 +65,6 @@ library
       Test.QuickCheck.ContractModel.Internal.Model
       Test.QuickCheck.ContractModel.Internal.Common
       Test.QuickCheck.ContractModel.Internal.ChainIndex
-      Test.QuickCheck.ContractModel.Internal.Hacks
       Test.QuickCheck.ContractModel.Internal.Spec
       Test.QuickCheck.ContractModel.Internal.Symbolics
       Test.QuickCheck.ContractModel.Internal.Utils

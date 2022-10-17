@@ -2,7 +2,10 @@
 module Test.QuickCheck.ContractModel.Internal.Model
   ( ContractModel(..)
   , Actions(..)
+  , Act(..)
   , toStateModelActions
+  , isBind
+  , dummyModelState
   , pattern ContractAction
   , pattern WaitUntil
   ) where
@@ -273,3 +276,6 @@ fromStateModelActions (StateModel.Actions_ rs (Smart k s)) =
     mkAct :: StateModel.Step (ModelState s) -> Maybe (Act s)
     mkAct (StateModel.Var i StateModel.:= ContractAction b act) = Just $ if b then Bind (StateModel.Var i) act else NoBind (StateModel.Var i) act
     mkAct (v                StateModel.:= WaitUntil n)          = Just $ ActWaitUntil v n
+
+dummyModelState :: state -> ModelState state
+dummyModelState s = ModelState 1 Map.empty mempty mempty mempty True s

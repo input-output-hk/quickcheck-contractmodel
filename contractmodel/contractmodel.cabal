@@ -61,6 +61,7 @@ library
     hs-source-dirs: src
     exposed-modules:
       Test.QuickCheck.ContractModel
+      Test.QuickCheck.ContractModel.DL
       Test.QuickCheck.ContractModel.Internal
       Test.QuickCheck.ContractModel.Internal.Model
       Test.QuickCheck.ContractModel.Internal.Common

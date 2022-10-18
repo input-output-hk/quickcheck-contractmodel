@@ -6,6 +6,8 @@ module Test.QuickCheck.ContractModel.Internal.Model
   , toStateModelActions
   , isBind
   , dummyModelState
+  , contractAction
+  , fromStateModelActions
   , pattern ContractAction
   , pattern WaitUntil
   ) where

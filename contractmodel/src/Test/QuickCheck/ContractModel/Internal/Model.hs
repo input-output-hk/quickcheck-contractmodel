@@ -148,6 +148,9 @@ class ( Typeable state
     shrinkAction :: ModelState state -> Action state -> [Action state]
     shrinkAction _ _ = []
 
+    restricted :: Action state -> Bool
+    restricted _ = False
+
 -- | Check if a given action creates new symbolic tokens in a given `ModelState`
 createsTokens :: ContractModel state
               => ModelState state

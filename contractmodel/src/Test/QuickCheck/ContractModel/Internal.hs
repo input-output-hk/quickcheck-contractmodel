@@ -156,7 +156,8 @@ assertBalanceChangesMatch :: ContractModelResult state
                           -> Property
 assertBalanceChangesMatch ContractModelResult{..} computeFees =
   let symbolicBalanceChanges  = _balanceChanges finalModelState
-      predictedBalanceChanges = toValue (fromJust . flip Map.lookup symbolicTokens) <$> symbolicBalanceChanges
+      predictedBalanceChanges = toValue (fromJust . flip Map.lookup symbolicTokens)
+                             <$> symbolicBalanceChanges
       actualBalanceChanges    = getBalanceChangesWithoutFees finalChainIndex computeFees
       text = unlines [ "Balance changes don't match:"
                      , "  Predicted symbolic balance changes: " ++ show symbolicBalanceChanges
@@ -171,5 +172,5 @@ assertBalanceChangesMatch ContractModelResult{..} computeFees =
 --      fees and up to min ada
 -- * Copy over other stuff from plutus-apps that we need?
 -- * Update the dependency in plutus-apps to work with this repo
--- TODO: DL stuff?
+-- TODO: DL stuff:
 --          actions should return the symtokens created

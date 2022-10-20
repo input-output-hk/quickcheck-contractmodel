@@ -155,8 +155,6 @@ runContractModel as = do
                                , finalChainIndex = ci
                                }
 
--- TODO: this isn't complete yet, we don't account for:
--- * Min ada
 assertBalanceChangesMatch :: ContractModelResult state
                           -> FeeCalculation
                           -> ProtocolParameters
@@ -179,7 +177,11 @@ checkEqualUpToMinAda :: Lovelace
                      -> Map (AddressInEra Era) Value
                      -> Map (AddressInEra Era) Value
                      -> Bool
-checkEqualUpToMinAda l m m' = _
+checkEqualUpToMinAda l m m' =
+  all (all isOk . valueToList) $ Map.unionWith (<>) m (negateValue <$> m')
+  where
+    isOk (AdaAssetId, q) = abs q <= lovelaceToQuantity l
+    isOk (_, q)          = q == 0
 
 -- TODO:
 -- * Assert that chain index results match model state results:

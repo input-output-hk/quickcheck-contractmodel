@@ -184,9 +184,4 @@ checkEqualUpToMinAda l m m' =
     isOk (_, q)          = q == 0
 
 -- TODO:
--- * Assert that chain index results match model state results:
---    - Balance changes match the balance changes on chain net of
---      fees and up to min ada
 -- * Update the dependency in plutus-apps to work with this repo
--- TODO: DL stuff:
---          actions should return the symtokens created

@@ -52,7 +52,11 @@ allMinUTxO ci params =
 type FeeCalculation = TxInState -> Map (AddressInEra Era) Value
 
 signerPaysFees :: FeeCalculation
-signerPaysFees TxInState{} = error "TODO: signerPaysFees"
+signerPaysFees TxInState{tx=tx}
+  | [wit] <- getTxWitnesses tx
+  , TxBody (txFee -> TxFeeExplicit _ lov) <- getTxBody tx =
+      Map.singleton (shelleyAddressInEra $ mkAddrFromWitness wit) (lovelaceToValue lov)
+  | otherwise = mempty
 
 -- TODO: is this really safe?? also - why is this so complicated??
 mkAddrFromWitness :: KeyWitness Era -> Address ShelleyAddr

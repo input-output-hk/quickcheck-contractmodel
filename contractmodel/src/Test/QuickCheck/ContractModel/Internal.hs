@@ -14,12 +14,14 @@ import Test.QuickCheck.ContractModel.Internal.Spec
 import Test.QuickCheck.ContractModel.Internal.ChainIndex
 import Test.QuickCheck.ContractModel.Internal.Model
 import Test.QuickCheck.ContractModel.Internal.Utils
+import Test.QuickCheck.ContractModel.Internal.Common
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List
 import Data.Maybe
 
 import Cardano.Api
+import Cardano.Api.Shelley
 
 class (ContractModel state, IsRunnable m) => RunModel state m where
   -- | Perform an `Action` in some `state` in the `Monad` `m`.  This
@@ -118,7 +120,12 @@ instance ( IsRunnable m
                             Just aid -> aid
           expectedTokens = map symVarIdx $ tokensRegisterdBy (nextState act) (StateModel.Var 0) s0
           tokenCounterexample
-           | sort (Map.keys tokens) /= sort expectedTokens = counterexample ("Expected tokens: [" ++ intercalate "," expectedTokens ++ "] got [" ++ intercalate "," (Map.keys tokens) ++ "]")
+           | sort (Map.keys tokens) /= sort expectedTokens =
+              counterexample ("Expected tokens: [" ++
+                              intercalate "," expectedTokens ++
+                              "] got [" ++
+                              intercalate "," (Map.keys tokens) ++
+                              "]")
            | otherwise = id
   monitoring (s0, _) (WaitUntil n@(SlotNo _n)) _ _ =
     tabulate "Wait interval" (bucket 10 diff) .
@@ -152,18 +159,27 @@ runContractModel as = do
 -- * Min ada
 assertBalanceChangesMatch :: ContractModelResult state
                           -> FeeCalculation
+                          -> ProtocolParameters
                           -> Property
-assertBalanceChangesMatch ContractModelResult{..} computeFees =
+assertBalanceChangesMatch ContractModelResult{..} computeFees protoParams =
   let symbolicBalanceChanges  = _balanceChanges finalModelState
       predictedBalanceChanges = toValue (fromJust . flip Map.lookup symbolicTokens)
                              <$> symbolicBalanceChanges
-      actualBalanceChanges    = getBalanceChangesWithoutFees finalChainIndex computeFees
+      actualBalanceChanges    = getBalanceChangesDiscountingFees finalChainIndex computeFees
+      minAda                  = sum $ allMinAda finalChainIndex protoParams
       text = unlines [ "Balance changes don't match:"
                      , "  Predicted symbolic balance changes: " ++ show symbolicBalanceChanges
                      , "  Predicted actual balance changes: " ++ show predictedBalanceChanges
                      , "  Actual balance changes: " ++ show actualBalanceChanges
+                     , "  Sum of min Lovelace: " ++ show minAda
                      ]
-  in counterexample text $ property $ predictedBalanceChanges == actualBalanceChanges
+  in counterexample text $ property $ checkEqualUpToMinAda minAda predictedBalanceChanges actualBalanceChanges
+
+checkEqualUpToMinAda :: Lovelace
+                     -> Map (AddressInEra Era) Value
+                     -> Map (AddressInEra Era) Value
+                     -> Bool
+checkEqualUpToMinAda l m m' = _
 
 -- TODO:
 -- * Assert that chain index results match model state results:

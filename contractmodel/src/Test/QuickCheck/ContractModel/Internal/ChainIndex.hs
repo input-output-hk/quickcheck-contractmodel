@@ -1,5 +1,6 @@
 module Test.QuickCheck.ContractModel.Internal.ChainIndex where
 
+import Data.Maybe
 import Data.Ord
 import Data.List
 import Data.Map (Map)
@@ -39,10 +40,10 @@ instance Semigroup ChainIndex where
 class HasChainIndex m where
   getChainIndex :: m ChainIndex
 
-allMinUTxO :: ChainIndex
-           -> ProtocolParameters
-           -> [Lovelace]
-allMinUTxO ci params =
+allMinAda :: ChainIndex
+          -> ProtocolParameters
+          -> [Lovelace]
+allMinAda ci params =
   [ selectLovelace v
   | TxInState{..} <- transactions ci
   , txOut <- getTxOuts tx
@@ -53,9 +54,7 @@ type FeeCalculation = TxInState -> Map (AddressInEra Era) Value
 
 signerPaysFees :: FeeCalculation
 signerPaysFees TxInState{tx=tx}
-  | [wit] <- getTxWitnesses tx
-  , TxBody (txFee -> TxFeeExplicit _ lov) <- getTxBody tx =
-      Map.singleton (shelleyAddressInEra $ mkAddrFromWitness wit) (lovelaceToValue lov)
+  | Tx (TxBody (txFee -> TxFeeExplicit _ lov)) [wit] <- tx = Map.singleton (shelleyAddressInEra $ mkAddrFromWitness wit) (lovelaceToValue lov)
   | otherwise = mempty
 
 -- TODO: is this really safe?? also - why is this so complicated??
@@ -72,10 +71,10 @@ mkAddrFromWitness wit = makeShelleyAddress Mainnet
         keyHashObj ShelleyBootstrapWitness{} = error "keyHashObj: ShelleyBootstrapWitness{}"
 
 -- TODO: what about failing transactions?
-getBalanceChangesWithoutFees :: ChainIndex
-                             -> FeeCalculation
-                             -> Map (AddressInEra Era) Value
-getBalanceChangesWithoutFees ChainIndex{..} computeFees =
+getBalanceChangesDiscountingFees :: ChainIndex
+                                 -> FeeCalculation
+                                 -> Map (AddressInEra Era) Value
+getBalanceChangesDiscountingFees ChainIndex{..} computeFees =
   foldr (Map.unionWith (<>)) mempty $  map txBalanceChanges transactions
                                     ++ map computeFees transactions
 

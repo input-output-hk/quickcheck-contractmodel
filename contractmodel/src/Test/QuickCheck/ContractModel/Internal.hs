@@ -14,7 +14,6 @@ import Test.QuickCheck.ContractModel.Internal.Spec
 import Test.QuickCheck.ContractModel.Internal.ChainIndex
 import Test.QuickCheck.ContractModel.Internal.Model
 import Test.QuickCheck.ContractModel.Internal.Utils
-import Test.QuickCheck.ContractModel.Internal.Common
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List
@@ -170,7 +169,6 @@ assertBalanceChangesMatch ContractModelResult{..} computeFees =
 -- * Assert that chain index results match model state results:
 --    - Balance changes match the balance changes on chain net of
 --      fees and up to min ada
--- * Copy over other stuff from plutus-apps that we need?
 -- * Update the dependency in plutus-apps to work with this repo
 -- TODO: DL stuff:
 --          actions should return the symtokens created

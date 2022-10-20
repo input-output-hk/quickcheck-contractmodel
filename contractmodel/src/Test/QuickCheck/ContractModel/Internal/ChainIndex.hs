@@ -8,9 +8,6 @@ import Cardano.Api
 import Cardano.Api.Shelley
 import Cardano.Ledger.Keys
 import Cardano.Ledger.Keys.WitVKey
-import Cardano.Ledger.Address
-import Cardano.Ledger.Credential hiding (PaymentCredential)
-import Cardano.Ledger.Crypto
 
 import Test.QuickCheck.ContractModel.Internal.Common
 import Test.QuickCheck.ContractModel.Internal.Utils

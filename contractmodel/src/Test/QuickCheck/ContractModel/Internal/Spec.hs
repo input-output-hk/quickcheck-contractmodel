@@ -5,7 +5,6 @@ import Control.Monad.Reader
 import Control.Monad.Writer as Writer
 import Test.QuickCheck.StateModel
 import Data.Map (Map)
-import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Cardano.Api

@@ -3,6 +3,7 @@ module Test.QuickCheck.ContractModel.Internal.Model
   ( ContractModel(..)
   , Actions(..)
   , Act(..)
+  , HasSymTokens(..)
   , toStateModelActions
   , isBind
   , dummyModelState

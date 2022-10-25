@@ -83,6 +83,6 @@ library
     build-depends:
       plutus-ledger-api,
       plutus-tx,
-      cardano-api,
+      cardano-api >= 1.35,
       cardano-ledger-core,
       cardano-ledger-shelley

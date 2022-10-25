@@ -1,14 +1,13 @@
 module Test.QuickCheck.ContractModel.Internal.ChainIndex where
 
-import Data.Maybe
 import Data.Ord
 import Data.List
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Cardano.Api
 import Cardano.Api.Shelley
-import Cardano.Ledger.Keys
-import Cardano.Ledger.Keys.WitVKey
+import Cardano.Ledger.Shelley.TxBody (WitVKey (..))
+import Cardano.Ledger.Keys (hashKey, coerceKeyRole)
 
 import Test.QuickCheck.ContractModel.Internal.Common
 import Test.QuickCheck.ContractModel.Internal.Utils
@@ -63,11 +62,12 @@ mkAddrFromWitness wit = makeShelleyAddress Mainnet
                                            (keyHashObj wit)
                                            NoStakeAddress
   where keyHashObj :: KeyWitness Era -> PaymentCredential
-        keyHashObj (ShelleyKeyWitness _ wit) =
+        keyHashObj (ShelleyKeyWitness _ (WitVKey wit _)) =
             PaymentCredentialByKey
-          $ PaymentKeyHash
-          $ coerceKeyRole -- TODO: is this really safe?!?!?!
-          $ witVKeyHash wit
+          . PaymentKeyHash
+          . hashKey
+          . coerceKeyRole   -- TODO: is this really safe?!?!?!
+          $ wit
         keyHashObj ShelleyBootstrapWitness{} = error "keyHashObj: ShelleyBootstrapWitness{}"
 
 -- TODO: what about failing transactions?

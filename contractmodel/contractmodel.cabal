@@ -84,4 +84,5 @@ library
       plutus-ledger-api,
       plutus-tx,
       cardano-api,
-      cardano-ledger-core
+      cardano-ledger-core,
+      cardano-ledger-shelley

@@ -31,6 +31,7 @@ allow-newer:
 
 constraints:
     aeson >= 2
+  , cardano-prelude == 0.1.0.0
   , hedgehog >= 1.1
   , protolude < 0.3.1
   , algebraic-graphs < 0.7

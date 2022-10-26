@@ -1,5 +1,6 @@
 module Test.QuickCheck.ContractModel.Internal.Spec where
 
+import Control.Monad.Morph
 import Control.Monad.State as State
 import Control.Monad.Reader
 import Control.Monad.Writer as Writer
@@ -12,6 +13,7 @@ import Test.QuickCheck.ContractModel.Internal.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Common
 import Control.Lens
 import Data.Foldable
+import Data.Coerce
 
 -- | The `ModelState` models the state of the blockchain. It contains,
 --
@@ -38,6 +40,11 @@ instance Functor ModelState where
 --   of an action on the blockchain.
 newtype Spec state a = Spec { unSpec :: WriterT [SymToken] (ReaderT (Var (Map String AssetId)) (State (ModelState state))) a }
     deriving (Functor, Applicative, Monad)
+
+coerceSpec :: forall s s' a. Coercible s s' => Spec s a -> Spec s' a
+coerceSpec (Spec spec) = do
+  s' <- Spec $ get
+  Spec $ hoist (hoist $ \ stateful -> let (a, s) = runState stateful (coerce s') in put (coerce s) >> return a) spec
 
 instance MonadState state (Spec state) where
   state f = Spec $ State.state $ \s -> case f (_contractState s) of

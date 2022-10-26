@@ -20,6 +20,7 @@ data ChainState = ChainState
 data TxInState = TxInState
   { tx         :: Tx Era
   , chainState :: ChainState
+  , accepted   :: Bool
   }
 
 -- TODO: this before-after stuff is a bit suspect!
@@ -47,12 +48,14 @@ allMinAda ci params =
   | TxInState{..} <- transactions ci
   , txOut <- getTxOuts tx
   , Right v <- [calculateMinimumUTxO era txOut params]
+  , accepted
   ]
 
 type FeeCalculation = TxInState -> Map (AddressInEra Era) Value
 
 signerPaysFees :: FeeCalculation
-signerPaysFees TxInState{tx=tx}
+signerPaysFees TxInState{tx = tx, accepted = accepted}
+  | not accepted = error "TODO: signerPaysFees rejected tx"
   | Tx (TxBody (txFee -> TxFeeExplicit _ lov)) [wit] <- tx = Map.singleton (shelleyAddressInEra $ mkAddrFromWitness wit) (lovelaceToValue lov)
   | otherwise = mempty
 
@@ -80,10 +83,11 @@ getBalanceChangesDiscountingFees ChainIndex{..} computeFees =
 
 txBalanceChanges :: TxInState
                  -> Map (AddressInEra Era) Value
-txBalanceChanges (TxInState tx ChainState{..}) =
-  Map.unionsWith (<>) $ [ Map.singleton a (txOutValueToValue v)
-                        | TxOut a v _ _ <- getTxOuts tx
-                        ] ++
-                        [ Map.singleton a (negateValue $ txOutValueToValue v)
-                        | TxOut a v _ _ <- getTxInputs tx utxo
-                        ]
+txBalanceChanges (TxInState tx ChainState{..} accepted)
+  | accepted = Map.unionsWith (<>) $ [ Map.singleton a (txOutValueToValue v)
+                                     | TxOut a v _ _ <- getTxOuts tx
+                                     ] ++
+                                     [ Map.singleton a (negateValue $ txOutValueToValue v)
+                                     | TxOut a v _ _ <- getTxInputs tx utxo
+                                     ]
+  | otherwise = error "TODO txBalanceChanges when removing collateral"

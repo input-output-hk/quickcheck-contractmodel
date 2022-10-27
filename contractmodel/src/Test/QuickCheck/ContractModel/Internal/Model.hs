@@ -9,6 +9,8 @@ module Test.QuickCheck.ContractModel.Internal.Model
   , dummyModelState
   , contractAction
   , fromStateModelActions
+  , stateAfter
+  , asserts
   , pattern ContractAction
   , pattern WaitUntil
   ) where
@@ -182,7 +184,10 @@ instance ContractModel state => Show (StateModel.Action (ModelState state) a) wh
 
 deriving instance ContractModel state => Eq (StateModel.Action (ModelState state) a)
 
-contractAction :: ContractModel state => ModelState state -> Action state -> StateModel.Action (ModelState state) (Map String AssetId)
+contractAction :: ContractModel state
+               => ModelState state
+               -> Action state
+               -> StateModel.Action (ModelState state) (Map String AssetId)
 contractAction s a = ContractAction (createsTokens s a) a
 
 instance ContractModel state => StateModel.StateModel (ModelState state) where
@@ -197,20 +202,26 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
   actionName (WaitUntil _)          = "WaitUntil"
 
   arbitraryAction s =
-    frequency [(floor $ 100.0*(1.0-waitProbability s), do a <- arbitraryAction s
-                                                          return (StateModel.Some (ContractAction (createsTokens s a) a)))
-              ,(floor $ 100.0*waitProbability s, StateModel.Some . WaitUntil . step <$> arbitraryWaitInterval s)]
+    frequency [( floor $ 100.0*(1.0-waitProbability s)
+               , do a <- arbitraryAction s
+                    return (StateModel.Some (ContractAction (createsTokens s a) a)))
+              ,( floor $ 100.0*waitProbability s
+               , StateModel.Some . WaitUntil . step <$> arbitraryWaitInterval s)]
         where
             slot = s ^. currentSlot
             step n = slot + n
 
   shrinkAction s (ContractAction _ a) =
-    [ StateModel.Some (WaitUntil (SlotNo n')) | let SlotNo n = runSpec (nextState a) (StateModel.Var 0) s ^. currentSlot
-                                              , n' <- n : shrink n
-                                              , SlotNo n' > s ^. currentSlot ] ++
-    [ StateModel.Some (contractAction s a') | a' <- shrinkAction s a ]
-  shrinkAction s (WaitUntil (SlotNo n))        =
-    [ StateModel.Some (WaitUntil (SlotNo n')) | n' <- shrink n, SlotNo n' > s ^. currentSlot ]
+    [ StateModel.Some (WaitUntil (SlotNo n'))
+    | let SlotNo n = runSpec (nextState a) (StateModel.Var 0) s ^. currentSlot
+    , n' <- n : shrink n
+    , SlotNo n' > s ^. currentSlot ] ++
+    [ StateModel.Some (contractAction s a')
+    | a' <- shrinkAction s a ]
+  shrinkAction s (WaitUntil (SlotNo n)) =
+    [ StateModel.Some (WaitUntil (SlotNo n'))
+    | n' <- shrink n
+    , SlotNo n' > s ^. currentSlot ]
 
   initialState = ModelState { _currentSlot      = 1
                             , _balanceChanges   = mempty
@@ -252,8 +263,10 @@ isBind Bind{} = True
 isBind _      = False
 
 instance ContractModel state => Show (Act state) where
-  showsPrec d (Bind (StateModel.Var i) a) = showParen (d >= 11) $ showString ("tok" ++ show i ++ " := ") . showsPrec 0 a
-  showsPrec d (ActWaitUntil _ n)          = showParen (d >= 11) $ showString ("WaitUntil ") . showsPrec 11 n
+  showsPrec d (Bind (StateModel.Var i) a) = showParen (d >= 11)
+                                          $ showString ("tok" ++ show i ++ " := ") . showsPrec 0 a
+  showsPrec d (ActWaitUntil _ n)          = showParen (d >= 11)
+                                          $ showString ("WaitUntil ") . showsPrec 11 n
   showsPrec d (NoBind _ a)                = showsPrec d a
 
 instance ContractModel state => Show (Actions state) where
@@ -280,8 +293,20 @@ fromStateModelActions (StateModel.Actions_ rs (Smart k s)) =
   Actions_ rs (Smart k (catMaybes $ map mkAct s))
   where
     mkAct :: StateModel.Step (ModelState s) -> Maybe (Act s)
-    mkAct (StateModel.Var i StateModel.:= ContractAction b act) = Just $ if b then Bind (StateModel.Var i) act else NoBind (StateModel.Var i) act
-    mkAct (v                StateModel.:= WaitUntil n)          = Just $ ActWaitUntil v n
+    mkAct (StateModel.Var i StateModel.:= ContractAction b act)
+          | b         = Just $ Bind   (StateModel.Var i) act
+          | otherwise = Just $ NoBind (StateModel.Var i) act
+    mkAct (v StateModel.:= WaitUntil n) = Just $ ActWaitUntil v n
 
 dummyModelState :: state -> ModelState state
 dummyModelState s = ModelState 1 Map.empty mempty mempty mempty True s
+
+stateAfter :: ContractModel state => Actions state -> ModelState state
+stateAfter = StateModel.stateAfter . toStateModelActions
+
+-- TODO: this should probably have a better name.
+-- Alternatively what we save in the
+-- model state should just be a property.
+asserts :: ModelState state -> Property
+asserts finalState = foldr (.&&.) (property True) [ counterexample ("assertSpec failed: " ++ s) b
+                                                     | (s, b) <- finalState ^. assertions ]

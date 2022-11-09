@@ -182,6 +182,3 @@ checkEqualUpToMinAda l m m' =
   where
     isOk (AdaAssetId, q) = abs q <= lovelaceToQuantity l
     isOk (_, q)          = q == 0
-
--- TODO:
--- * Update the dependency in plutus-apps to work with this repo

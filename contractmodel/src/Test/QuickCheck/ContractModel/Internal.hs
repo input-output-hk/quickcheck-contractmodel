@@ -55,6 +55,9 @@ class (ContractModel state, IsRunnable m) => RunModel state m where
 newtype RunMonad m a = RunMonad { unRunMonad :: WriterT [(String, AssetId)] m a }
   deriving (Functor, Applicative, Monad, MonadWriter [(String, AssetId)])
 
+liftRunMonad :: (forall a. m a -> n a) -> RunMonad m a -> RunMonad n a
+liftRunMonad f (RunMonad (WriterT m)) = RunMonad . WriterT $ f m
+
 instance Monad m => MonadFail (RunMonad m) where
   fail = error
 

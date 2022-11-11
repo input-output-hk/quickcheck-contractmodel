@@ -1,19 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
-module Test.QuickCheck.ContractModel.Internal.Model
-  ( ContractModel(..)
-  , Actions(..)
-  , Act(..)
-  , HasSymTokens(..)
-  , toStateModelActions
-  , isBind
-  , dummyModelState
-  , contractAction
-  , fromStateModelActions
-  , stateAfter
-  , asserts
-  , pattern ContractAction
-  , pattern WaitUntil
-  ) where
+module Test.QuickCheck.ContractModel.Internal.Model where
+
 import Control.Lens
 import Control.Monad.Reader
 import Control.Monad.Writer as Writer

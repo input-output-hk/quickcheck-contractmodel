@@ -13,6 +13,7 @@ module Test.QuickCheck.ContractModel.Internal.Model
   , pattern WaitUntil
   , pattern Actions
   , Act(..)
+  , mapActions
   , isBind
   , toStateModelActions
   , fromStateModelActions
@@ -262,6 +263,13 @@ pattern Actions as <- Actions_ _ (Smart _ as) where
 data Act s = Bind   {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
            | NoBind {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
            | ActWaitUntil (StateModel.Var ()) SlotNo
+
+mapActions :: (Action s -> Action s') -> Actions s -> Actions s'
+mapActions f (Actions_ rej (Smart n as)) = Actions_ rej $ Smart n $ map mapAct as
+  where
+    mapAct (Bind x a)         = Bind x (f a)
+    mapAct (NoBind x a)       = NoBind x (f a)
+    mapAct (ActWaitUntil x n) = ActWaitUntil x n
 
 deriving instance ContractModel s => Eq (Act s)
 

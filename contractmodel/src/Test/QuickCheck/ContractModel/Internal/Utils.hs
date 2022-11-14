@@ -1,7 +1,6 @@
 module Test.QuickCheck.ContractModel.Internal.Utils where
 
 import Test.QuickCheck.ContractModel.Internal.Common
-import Data.Map (Map)
 import Data.Map qualified as Map
 
 import Cardano.Api

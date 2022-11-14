@@ -81,13 +81,13 @@ class ( StateModel.Realized m (Map String AssetId) ~ Map String AssetId
       , HasChainIndex m
       , Monad m
       ) => IsRunnable m where
-  waitUntil :: SlotNo -> m ()
+  awaitSlot :: SlotNo -> m ()
 
 instance (Monad m, HasChainIndex m) => HasChainIndex (RunMonad m) where
   getChainIndex = lift getChainIndex
 
 instance IsRunnable m => IsRunnable (RunMonad m) where
-  waitUntil = lift . waitUntil
+  awaitSlot = lift . awaitSlot
 
 instance ( IsRunnable m
          , RunModel state m
@@ -99,7 +99,7 @@ instance ( IsRunnable m
             Nothing      -> error $ "The impossible happend: uncaught missing registerToken call for token: " ++ show token
       -- Run locally and get the registered tokens out
       withLocalTokens $ perform st a translate
-  perform _ (WaitUntil slot) _ = waitUntil slot
+  perform _ (WaitUntil slot) _ = awaitSlot slot
 
   postcondition (st, _) (ContractAction _ act) _ tokens = do
     -- Ask the model what tokens we expected to be registered in this run.

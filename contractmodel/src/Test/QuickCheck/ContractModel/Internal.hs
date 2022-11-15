@@ -78,7 +78,6 @@ type instance StateModel.Realized (RunMonad m) a = StateModel.Realized m a
 
 class ( StateModel.Realized m (Map String AssetId) ~ Map String AssetId
       , StateModel.Realized m () ~ ()
-      , HasChainIndex m
       , Monad m
       ) => IsRunnable m where
   awaitSlot :: SlotNo -> m ()
@@ -141,7 +140,7 @@ data ContractModelResult state = ContractModelResult
   , finalChainIndex :: ChainIndex
   }
 
-runContractModel :: (ContractModel state, RunModel state m)
+runContractModel :: (ContractModel state, RunModel state m, HasChainIndex m)
                  => Actions state
                  -> PropertyM (RunMonad m) (ContractModelResult state)
 runContractModel as = do

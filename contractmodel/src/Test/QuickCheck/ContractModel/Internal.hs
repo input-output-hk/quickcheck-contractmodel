@@ -107,7 +107,7 @@ instance ( IsRunnable m
     -- therefore get something unique. Likewise, we know that `nextState` can't observe the
     -- variables we use so it won't know the difference between having the real sym token
     -- it will get when we run `stateAfter` and this fake one.
-    let expectedTokens = map symVarIdx $ tokensRegisterdBy (nextState act) (StateModel.Var 0) st
+    let expectedTokens = map symVarIdx $ tokensCreatedBy (nextState act) (StateModel.Var 0) st
     -- If we the `createToken` and `registerToken` tokens don't correspond we have an issue!
     pure $ sort (Map.keys tokens) /= sort expectedTokens
   -- TODO: maybe add that current slot should equal the awaited slot?
@@ -121,7 +121,7 @@ instance ( IsRunnable m
     where lookup token = case Map.lookup (symVarIdx token) (env (symVar token)) of
                             Nothing  -> error $ "Unbound token: " ++ show token
                             Just aid -> aid
-          expectedTokens = map symVarIdx $ tokensRegisterdBy (nextState act) (StateModel.Var 0) s0
+          expectedTokens = map symVarIdx $ tokensCreatedBy (nextState act) (StateModel.Var 0) s0
           tokenCounterexample
            | sort (Map.keys tokens) /= sort expectedTokens =
               counterexample ("Expected tokens: [" ++

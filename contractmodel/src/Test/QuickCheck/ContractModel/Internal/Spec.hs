@@ -146,11 +146,19 @@ runSpec (Spec spec) v s = flip State.execState s $ do
   w <- runReaderT (snd <$> Writer.runWriterT spec) v
   symTokens %= (Set.fromList w <>)
 
-tokensRegisterdBy :: Spec state ()
+tokensCreatedBy :: Spec state ()
                   -> Var (Map String AssetId)
                   -> ModelState state
                   -> [SymToken]
-tokensRegisterdBy (Spec spec) v s = flip State.evalState s $ runReaderT (snd <$> Writer.runWriterT spec) v
+tokensCreatedBy (Spec spec) v s = flip State.evalState s $ runReaderT (snd <$> Writer.runWriterT spec) v
+
+-- | Create a new symbolic token in `nextState` - must have a
+-- corresponding `registerToken` call in `perform`
+createToken :: String -> Spec state SymToken
+createToken key = Spec $ do
+  var <- ask
+  Writer.tell [SymToken var key]
+  pure $ SymToken var key
 
 -- | Mint tokens. Minted tokens start out as `lockedValue` (i.e. owned by the contract) and can be
 --   transferred to wallets using `deposit`.

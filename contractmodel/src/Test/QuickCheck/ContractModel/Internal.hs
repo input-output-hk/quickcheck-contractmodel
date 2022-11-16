@@ -170,9 +170,8 @@ assertBalanceChangesMatch :: BalanceChangeOptions
 assertBalanceChangesMatch (BalanceChangeOptions observeScript computeFees protoParams)
                           ContractModelResult{..} =
   let symbolicBalanceChanges  = _balanceChanges finalModelState
-      predictedBalanceChanges = toValue (fromJust . flip Map.lookup symbolicTokens)
-                             <$> symbolicBalanceChanges
-      actualBalanceChanges    = getBalanceChangesDiscountingFees finalChainIndex computeFees
+      predictedBalanceChanges = filterScripts $ fmap (toValue (fromJust . flip Map.lookup symbolicTokens)) symbolicBalanceChanges
+      actualBalanceChanges    = filterScripts $ getBalanceChangesDiscountingFees finalChainIndex computeFees
       minAda                  = sum $ allMinAda finalChainIndex protoParams
       text = unlines [ "Balance changes don't match:"
                      , "  Predicted symbolic balance changes: " ++ show symbolicBalanceChanges
@@ -184,9 +183,11 @@ assertBalanceChangesMatch (BalanceChangeOptions observeScript computeFees protoP
         | observeScript = m
         | otherwise     = Map.filterWithKey (\ k _ -> isScriptAddress k) m
 
-      isScriptAddress (AddressInEra (ShelleyAddressInEra _) addr) = isNothing $ shelleyPayAddrToPlutusPubKHash addr -- TODO: this is a hack because the module we need isn't exported. WTF?!
+      -- TODO: this is a hack because the module we need isn't exported. WTF?!
+      isScriptAddress (AddressInEra (ShelleyAddressInEra _) addr) = isNothing $ shelleyPayAddrToPlutusPubKHash addr
       isScriptAddress _ = False
-  in counterexample text $ property $ checkEqualUpToMinAda minAda (filterScripts predictedBalanceChanges) (filterScripts actualBalanceChanges)
+
+  in counterexample text $ property $ checkEqualUpToMinAda minAda predictedBalanceChanges actualBalanceChanges
 
 checkEqualUpToMinAda :: Lovelace
                      -> Map (AddressInEra Era) Value

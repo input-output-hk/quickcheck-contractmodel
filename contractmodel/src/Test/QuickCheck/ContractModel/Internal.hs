@@ -180,7 +180,7 @@ assertBalanceChangesMatch (BalanceChangeOptions observeScript computeFees protoP
                      ]
       filterScripts m
         | observeScript = m
-        | otherwise     = Map.filterWithKey (\ k _ -> isScriptAddress k) m
+        | otherwise     = Map.filterWithKey (\ k _ -> not $ isScriptAddress k) m
 
       -- TODO: this is a hack because the module we need isn't exported. WTF?!
       isScriptAddress (AddressInEra (ShelleyAddressInEra _) addr) = isNothing $ shelleyPayAddrToPlutusPubKHash addr

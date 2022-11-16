@@ -324,4 +324,4 @@ stateAfter = StateModel.stateAfter . toStateModelActions
 -- model state should just be a property.
 asserts :: ModelState state -> Property
 asserts finalState = foldr (.&&.) (property True) [ counterexample ("assertSpec failed: " ++ s) b
-                                                     | (s, b) <- finalState ^. assertions ]
+                                                  | (s, b) <- finalState ^. assertions ]

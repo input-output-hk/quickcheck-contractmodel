@@ -22,6 +22,7 @@ import Data.Maybe
 
 import Cardano.Api
 import Cardano.Api.Shelley
+import Cardano.Ledger.Credential
 
 class (ContractModel state, IsRunnable m) => RunModel state m where
   -- | Perform an `Action` in some `state` in the `Monad` `m`.  This
@@ -157,11 +158,17 @@ runContractModel as = do
                                , finalChainIndex = ci
                                }
 
-assertBalanceChangesMatch :: ContractModelResult state
-                          -> FeeCalculation
-                          -> ProtocolParameters
+data BalanceChangeOptions = BalanceChangeOptions
+  { observeScriptValue :: Bool
+  , feeCalucation      :: FeeCalculation
+  , protocolParameters :: ProtocolParameters
+  }
+
+assertBalanceChangesMatch :: BalanceChangeOptions
+                          -> ContractModelResult state
                           -> Property
-assertBalanceChangesMatch ContractModelResult{..} computeFees protoParams =
+assertBalanceChangesMatch (BalanceChangeOptions observeScript computeFees protoParams)
+                          ContractModelResult{..} =
   let symbolicBalanceChanges  = _balanceChanges finalModelState
       predictedBalanceChanges = toValue (fromJust . flip Map.lookup symbolicTokens)
                              <$> symbolicBalanceChanges
@@ -173,7 +180,13 @@ assertBalanceChangesMatch ContractModelResult{..} computeFees protoParams =
                      , "  Actual balance changes: " ++ show actualBalanceChanges
                      , "  Sum of min Lovelace: " ++ show minAda
                      ]
-  in counterexample text $ property $ checkEqualUpToMinAda minAda predictedBalanceChanges actualBalanceChanges
+      filterScripts m
+        | observeScript = m
+        | otherwise     = Map.filterWithKey (\ k _ -> isScriptAddress k) m
+
+      isScriptAddress (AddressInEra (ShelleyAddressInEra _) addr) = isNothing $ shelleyPayAddrToPlutusPubKHash addr -- TODO: this is a hack because the module we need isn't exported. WTF?!
+      isScriptAddress _ = False
+  in counterexample text $ property $ checkEqualUpToMinAda minAda (filterScripts predictedBalanceChanges) (filterScripts actualBalanceChanges)
 
 checkEqualUpToMinAda :: Lovelace
                      -> Map (AddressInEra Era) Value

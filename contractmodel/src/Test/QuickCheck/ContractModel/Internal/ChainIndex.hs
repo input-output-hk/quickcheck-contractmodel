@@ -28,6 +28,7 @@ data ChainIndex = ChainIndex
   { before       :: ChainState
   , after        :: ChainState
   , transactions :: [TxInState]
+  , networkId    :: NetworkId
   }
 
 instance Semigroup ChainIndex where
@@ -35,6 +36,7 @@ instance Semigroup ChainIndex where
                          , after        = maximumBy (comparing slot) [after ci, after ci']
                          , transactions = sortBy (comparing (slot . chainState))
                                         $ transactions ci ++ transactions ci'
+                         , networkId    = networkId ci
                          }
 
 class HasChainIndex m where
@@ -51,19 +53,19 @@ allMinAda ci params =
   , accepted
   ]
 
-type FeeCalculation = TxInState -> Map (AddressInEra Era) Value
+type FeeCalculation = NetworkId -> TxInState -> Map (AddressInEra Era) Value
 
 signerPaysFees :: FeeCalculation
-signerPaysFees TxInState{tx = tx, accepted = accepted}
+signerPaysFees nid TxInState{tx = tx, accepted = accepted}
   | not accepted = error "TODO: signerPaysFees rejected tx"
-  | Tx (TxBody (txFee -> TxFeeExplicit _ lov)) [wit] <- tx = Map.singleton (shelleyAddressInEra $ mkAddrFromWitness wit) (lovelaceToValue lov)
+  | Tx (TxBody (txFee -> TxFeeExplicit _ lov)) [wit] <- tx = Map.singleton (shelleyAddressInEra $ mkAddrFromWitness nid wit) (lovelaceToValue lov)
   | otherwise = mempty
 
 -- TODO: is this really safe?? also - why is this so complicated??
-mkAddrFromWitness :: KeyWitness Era -> Address ShelleyAddr
-mkAddrFromWitness wit = makeShelleyAddress Mainnet
-                                           (keyHashObj wit)
-                                           NoStakeAddress
+mkAddrFromWitness :: NetworkId -> KeyWitness Era -> Address ShelleyAddr
+mkAddrFromWitness nid wit = makeShelleyAddress nid
+                                               (keyHashObj wit)
+                                               NoStakeAddress
   where keyHashObj :: KeyWitness Era -> PaymentCredential
         keyHashObj (ShelleyKeyWitness _ (WitVKey wit _)) =
             PaymentCredentialByKey
@@ -79,7 +81,7 @@ getBalanceChangesDiscountingFees :: ChainIndex
                                  -> Map (AddressInEra Era) Value
 getBalanceChangesDiscountingFees ChainIndex{..} computeFees =
   foldr (Map.unionWith (<>)) mempty $  map txBalanceChanges transactions
-                                    ++ map computeFees transactions
+                                    ++ map (computeFees networkId) transactions
 
 txBalanceChanges :: TxInState
                  -> Map (AddressInEra Era) Value

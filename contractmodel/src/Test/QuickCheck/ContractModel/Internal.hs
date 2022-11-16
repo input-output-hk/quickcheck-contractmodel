@@ -22,7 +22,6 @@ import Data.Maybe
 
 import Cardano.Api
 import Cardano.Api.Shelley
-import Cardano.Ledger.Credential
 
 class (ContractModel state, IsRunnable m) => RunModel state m where
   -- | Perform an `Action` in some `state` in the `Monad` `m`.  This

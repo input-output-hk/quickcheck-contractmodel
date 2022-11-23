@@ -38,4 +38,4 @@ You also need to implement an instance for `IsRunnable` which requires a functio
 
 See:
 - [ChainIndex.hs](contractmodel/src/Test/QuickCheck/ContractModel/Internal/ChainIndex.hs)
-- [Inner.hs](contractmodel/src/Test/QuickCheck/ContractModel/Internal.hs#L74)
+- [Inner.hs](contractmodel/src/Test/QuickCheck/ContractModel/Internal.hs#L79)

@@ -215,7 +215,6 @@ action cmd = do
   s <- getModelState
   DL.action (contractAction s cmd)
 
--- | Generate a specific action. Fails if the action's `precondition` is not satisfied.
 waitUntilDL :: ContractModel state => SlotNo -> DL state ()
 waitUntilDL = DL.action . WaitUntil
 

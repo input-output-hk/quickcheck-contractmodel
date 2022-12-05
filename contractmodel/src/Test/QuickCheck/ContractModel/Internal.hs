@@ -19,7 +19,7 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List
 import Data.Maybe
-import Text.PrettyPrint hiding ((<>))
+import Text.PrettyPrint.HughesPJClass hiding ((<>))
 
 import Cardano.Api
 import Cardano.Api.Shelley
@@ -175,17 +175,17 @@ assertBalanceChangesMatch (BalanceChangeOptions observeScript computeFees protoP
       actualBalanceChanges    = filterScripts $ getBalanceChangesDiscountingFees finalChainIndex computeFees
       minAda                  = sum $ allMinAda finalChainIndex protoParams
       prettyChanges changes   = vcat
-                                  [ (text (addressPrettyPrinter addr) <> ":") <+> text val
+                                  [ sep [ text (addressPrettyPrinter addr) <> ":", nest 2 val ]
                                   | (addr, val) <- Map.toList changes ]
       msg = show $ vcat
              [ "Balance changes don't match:"
              , nest 2 $ vcat
                [ sep [ "Predicted symbolic balance changes:"
-                     , nest 2 $ prettyChanges $ show <$> symbolicBalanceChanges ]
+                     , nest 2 $ prettyChanges $ pPrint <$> symbolicBalanceChanges ]
                , sep [ "Predicted actual balance changes:"
-                     , nest 2 $ prettyChanges $ show <$> predictedBalanceChanges ]
+                     , nest 2 $ prettyChanges $ pPrintValue <$> predictedBalanceChanges ]
                , sep [ "Actual balance changes:"
-                     , nest 2 $ prettyChanges $ show <$> actualBalanceChanges ]
+                     , nest 2 $ prettyChanges $ pPrintValue <$> actualBalanceChanges ]
                , "Sum of min Lovelace:" <+> text (show minAda)
                ]
              ]

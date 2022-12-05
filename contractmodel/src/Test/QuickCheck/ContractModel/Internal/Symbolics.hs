@@ -10,6 +10,7 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
 import GHC.Generics
+import Text.PrettyPrint.HughesPJClass hiding ((<>))
 
 -- | A symbolic token is a token that exists only during ContractModel generation time
 data SymToken = SymToken { symVar    :: Var (Map String AssetId) -- TODO: this should not be exported to the public interface
@@ -35,6 +36,19 @@ instance Monoid SymValue where
 instance Eq SymValue where
   (SymValue m v) == (SymValue m' v') = Map.filter (/= 0) m == Map.filter (/= 0) m'
                                      && v == v'
+
+pPrintValue :: Value -> Doc
+pPrintValue val = braces $ sep $ punctuate comma
+  [ text (show v) <+> pPrintAssetId asset | (asset, v) <- valueToList val ]
+
+pPrintAssetId :: AssetId -> Doc
+pPrintAssetId AdaAssetId            = text "Lovelace"
+pPrintAssetId (AssetId policy name) = text $ take 8 (tail $ show policy) ++ ":" ++ filter (/= '"') (show name)
+
+instance Pretty SymValue where
+  pPrint (SymValue sym val) = braces $ sep $ punctuate comma $
+    [ text (show v) <+> text (show tok)     | (tok, v)   <- Map.toList sym  ] ++
+    [ text (show v) <+> pPrintAssetId asset | (asset, v) <- valueToList val ]
 
 -- | Check if a symbolic value is zero
 symIsZero :: SymValue -> Bool

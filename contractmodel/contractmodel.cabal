@@ -49,6 +49,7 @@ common lang
     DeriveGeneric
     DerivingVia
     TypeOperators
+    OverloadedStrings
 
   ghc-options:
     -Wall -Wnoncanonical-monad-instances -Wunused-packages
@@ -76,6 +77,7 @@ library
       lens,
       mtl,
       mmorph,
+      pretty,
     -- QuickCheck dependencies
     build-depends:
       QuickCheck -any,

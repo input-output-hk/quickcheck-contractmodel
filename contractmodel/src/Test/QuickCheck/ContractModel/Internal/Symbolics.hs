@@ -8,7 +8,6 @@ import Test.QuickCheck.ContractModel.Internal.Common ()
 
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Data
 import Data.Maybe
 import GHC.Generics
 

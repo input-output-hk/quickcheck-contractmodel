@@ -19,6 +19,7 @@ import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.List
 import Data.Maybe
+import Text.PrettyPrint hiding ((<>))
 
 import Cardano.Api
 import Cardano.Api.Shelley
@@ -158,26 +159,36 @@ runContractModel as = do
                                }
 
 data BalanceChangeOptions = BalanceChangeOptions
-  { observeScriptValue :: Bool
-  , feeCalucation      :: FeeCalculation
-  , protocolParameters :: ProtocolParameters
+  { observeScriptValue   :: Bool
+  , feeCalucation        :: FeeCalculation
+  , protocolParameters   :: ProtocolParameters
+  , addressPrettyPrinter :: AddressInEra Era -> String
   }
 
 assertBalanceChangesMatch :: BalanceChangeOptions
                           -> ContractModelResult state
                           -> Property
-assertBalanceChangesMatch (BalanceChangeOptions observeScript computeFees protoParams)
+assertBalanceChangesMatch (BalanceChangeOptions observeScript computeFees protoParams addressPrettyPrinter)
                           ContractModelResult{..} =
   let symbolicBalanceChanges  = _balanceChanges finalModelState
       predictedBalanceChanges = filterScripts $ fmap (toValue (fromJust . flip Map.lookup symbolicTokens)) symbolicBalanceChanges
       actualBalanceChanges    = filterScripts $ getBalanceChangesDiscountingFees finalChainIndex computeFees
       minAda                  = sum $ allMinAda finalChainIndex protoParams
-      text = unlines [ "Balance changes don't match:"
-                     , "  Predicted symbolic balance changes: " ++ show symbolicBalanceChanges
-                     , "  Predicted actual balance changes: " ++ show predictedBalanceChanges
-                     , "  Actual balance changes: " ++ show actualBalanceChanges
-                     , "  Sum of min Lovelace: " ++ show minAda
-                     ]
+      prettyChanges changes   = vcat
+                                  [ (text (addressPrettyPrinter addr) <> ":") <+> text val
+                                  | (addr, val) <- Map.toList changes ]
+      msg = show $ vcat
+             [ "Balance changes don't match:"
+             , nest 2 $ vcat
+               [ sep [ "Predicted symbolic balance changes:"
+                     , nest 2 $ prettyChanges $ show <$> symbolicBalanceChanges ]
+               , sep [ "Predicted actual balance changes:"
+                     , nest 2 $ prettyChanges $ show <$> predictedBalanceChanges ]
+               , sep [ "Actual balance changes:"
+                     , nest 2 $ prettyChanges $ show <$> actualBalanceChanges ]
+               , "Sum of min Lovelace:" <+> text (show minAda)
+               ]
+             ]
       filterScripts m
         | observeScript = m
         | otherwise     = Map.filterWithKey (\ k _ -> not $ isScriptAddress k) m
@@ -186,7 +197,7 @@ assertBalanceChangesMatch (BalanceChangeOptions observeScript computeFees protoP
       isScriptAddress (AddressInEra (ShelleyAddressInEra _) addr) = isNothing $ shelleyPayAddrToPlutusPubKHash addr
       isScriptAddress _ = False
 
-  in counterexample text $ property $ checkEqualUpToMinAda minAda predictedBalanceChanges actualBalanceChanges
+  in counterexample msg $ property $ checkEqualUpToMinAda minAda predictedBalanceChanges actualBalanceChanges
 
 checkEqualUpToMinAda :: Lovelace
                      -> Map (AddressInEra Era) Value

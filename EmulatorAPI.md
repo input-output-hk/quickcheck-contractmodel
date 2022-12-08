@@ -4,13 +4,12 @@ QuickCheck ContractModel is a layer on top of quckcheck-dynamic to model Plutus 
 This results in QuickCheck generating test cases for those contracts according to the specified model.
 In order to run those test caes, one needs to emulate the Cardano blockhain.
 
-There is a generator in plutus-apps, but if you have your own requirements on the emulator, then you can use your own emulator.
-It requires that you have implemented a Cardano.API compatible interface. The contract model needs the following
+There is an emulator in plutus-apps, but if you have your own requirements on the emulator,
+you can use your own emulator. However, to use `quickcheck-contractmodel` your emulator needs a
+`Cardano.API` compatible interface.
 
-## API
-
-You need to implement your emulator as a monad with an instance for
-`HasChainIndex` which requires a function `getChainIndex` to get a chain index in your emulator:
+Specifically, you need to implement your emulator as a monad with an instance for `HasChainIndex` which
+requires a function `getChainIndex` to get a chain index in your emulator:
 
 ```
 data ChainIndex = ChainIndex
@@ -33,9 +32,9 @@ data TxInState = TxInState
 
 ```
 
-
-You also need to implement an instance for `IsRunnable` which requires a function `awaitSlot` to reach a certain slot in your emulated blockchain.
+You also need to implement an instance for `IsRunnable` which requires a function `awaitSlot` to reach
+a given slot on your emulated blockchain.
 
 See:
 - [ChainIndex.hs](contractmodel/src/Test/QuickCheck/ContractModel/Internal/ChainIndex.hs)
-- [Inner.hs](contractmodel/src/Test/QuickCheck/ContractModel/Internal.hs#L79)
+- [Internal.hs](contractmodel/src/Test/QuickCheck/ContractModel/Internal.hs#L79)

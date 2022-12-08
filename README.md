@@ -68,8 +68,3 @@ locked and nobody can get those funds out. You can re-use those properties. You 
 additional unit tests, if so required.
 
 *TODO: Something about double satisfaction and threat models later*
-
-## Certification ##
-
-When you have thoroughly tested your contract and want to show for your users how well
-you did, you can connect your results to the certification service that IOG offers.

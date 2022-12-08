@@ -13,17 +13,17 @@ You do not need this repository, it is a dependency of plutus-apps.
 
 ## Automatic test case generation ##
 
-Like any quickcheck library, this repository provides you with the means of automatically generated
-test cases for your Plutus scripts. It generates those test caes from a specification or model of
-the contract. This contract model has to be provided by a developer. This model describes for each
-action that creates a transaction what the behaviour of that action is on the contract state. It
-is very similar to the models provided in this
+This repository provides you with the means to automatically generate test cases for your Cardano smart
+contracts. To do this it uses a model of the contract that you provide as an instance of the
+`ContactModel` class. This model describes for each action of your contract (e.g. contract endpoint
+or functionality) what the behaviour of that action is on an abstracted contract and blockchain state.
+It is very similar to the models provided in this
 [tutorial](https://plutus-apps.readthedocs.io/en/latest/plutus/tutorials/contract-models.html).
 
 If you want to be independent of plutus-apps, use your own way and languages designing Plutus scripts,
-then this repository offers a blockchain-emulator-generic interface on top of quickcheck-dynamic.
-There are standard properties that quickcheck tests for. The models provide automatic shrinking of
-failing test cases, such that your debug effort is minimized.
+then this repository offers an emulator-generic interface for testing Cardano contracts on top of
+quickcheck-dynamic. There are standard properties that quickcheck tests for. The models provide
+automatic shrinking of failing test cases, such that your debug effort is minimized.
 
 ## Actions and Transactions ##
 

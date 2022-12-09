@@ -9,7 +9,8 @@ If you use the plutus-apps repository for development of your scripts, we refer 
 [tutorials](https://plutus-apps.readthedocs.io/en/latest/plutus/tutorials/contract-models.html).
 You do not need this repository, it is a dependency of plutus-apps.
 
-*TODO: we need some form of "how to get started" thing here*
+*TODO: we need some form of "how to get started" thing that details the work you
+need to do here. This requires having some base emulator that people can use...*
 
 ## Automatic test case generation ##
 
@@ -32,11 +33,13 @@ will result in the generation of a transaction that is then posted to the blockc
 However, you can also add actions to the model to wait a certain number of blocks or to put funds or
 tokens into a wallet not involving the plutus script under test. The actions described in the model
 have to be connected to the world in which you write your contract via the interface of a
-`perform` function. Think of it like you write your actions abstract in the model world,
-like `Pay` and `Redeem`, whereas you build your transactions via some code that comes up with the
-actual transaction that you have written as part of your contract API. If that API is Haskell, then
-the effort to write the `perform` function is rather limited. However, if you have written it in a
-different language, you need to bridge between Haskell and that language.
+`perform` function via the `RunModel` class.
+
+The way to think about it is like a phase separation between the abstract world of
+actions acting on a model, like `Pay` and `Redeem`, whereas you build your transactions via some code
+that comes up with the actual transaction that you have written as part of your contract API. If that
+API is Haskell, then the effort to write the `perform` function is rather limited. However, if you
+have written it in a different language, you need to bridge between Haskell and that language.
 
 You have to provide an interface between the abstract operations in the contract model and the
 off-chain code in your project that creates the actual transactions.

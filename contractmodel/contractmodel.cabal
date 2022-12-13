@@ -70,6 +70,11 @@ library
       Test.QuickCheck.ContractModel.Internal.Spec
       Test.QuickCheck.ContractModel.Internal.Symbolics
       Test.QuickCheck.ContractModel.Internal.Utils
+      Test.QuickCheck.ContractModel.ThreatModel
+      Test.QuickCheck.ContractModel.ThreatModel.Cardano.Api
+      Test.QuickCheck.ContractModel.ThreatModel.DoubleSatisfaction
+      Test.QuickCheck.ContractModel.ThreatModel.Pretty
+      Test.QuickCheck.ContractModel.ThreatModel.TxModifier
     -- General dependencies
     build-depends:
       base >=4.7 && <5,
@@ -78,6 +83,8 @@ library
       mtl,
       mmorph,
       pretty,
+      bytestring,
+      time,
     -- QuickCheck dependencies
     build-depends:
       QuickCheck -any,
@@ -88,4 +95,12 @@ library
       plutus-tx,
       cardano-api >= 1.35,
       cardano-ledger-core,
-      cardano-ledger-shelley
+      cardano-ledger-alonzo,
+      cardano-ledger-shelley,
+      cardano-ledger-babbage,
+      cardano-binary,
+      cardano-slotting,
+      ouroboros-consensus,
+      ouroboros-consensus-cardano,
+      strict-containers,
+      cardano-ledger-shelley-ma,

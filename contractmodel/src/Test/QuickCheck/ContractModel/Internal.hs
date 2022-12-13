@@ -198,13 +198,13 @@ assertBalanceChangesMatch (BalanceChangeOptions observeScript computeFees protoP
       isScriptAddress _ = False
 
   in counterexample msg $ property $ checkEqualUpToMinAda minAda predictedBalanceChanges actualBalanceChanges
-
-checkEqualUpToMinAda :: Lovelace
-                     -> Map (AddressInEra Era) Value
-                     -> Map (AddressInEra Era) Value
-                     -> Bool
-checkEqualUpToMinAda l m m' =
-  all (all isOk . valueToList) $ Map.unionWith (<>) m (negateValue <$> m')
   where
-    isOk (AdaAssetId, q) = abs q <= lovelaceToQuantity l
-    isOk (_, q)          = q == 0
+    checkEqualUpToMinAda :: Lovelace
+                         -> Map (AddressInEra Era) Value
+                         -> Map (AddressInEra Era) Value
+                         -> Bool
+    checkEqualUpToMinAda l m m' =
+      all (all isOk . valueToList) $ Map.unionWith (<>) m (negateValue <$> m')
+      where
+        isOk (AdaAssetId, q) = abs q <= lovelaceToQuantity l
+        isOk (_, q)          = q == 0

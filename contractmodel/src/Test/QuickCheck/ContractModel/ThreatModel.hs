@@ -45,6 +45,9 @@ module Test.QuickCheck.ContractModel.ThreatModel
   , addSimpleScriptInput
   , removeInput
   , changeRedeemerOf
+  , changeValidityRange
+  , changeValidityLowerBound
+  , changeValidityUpperBound
   , replaceTx
     -- * Threat models
   , ThreatModel

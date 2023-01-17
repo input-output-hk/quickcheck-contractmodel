@@ -169,12 +169,15 @@ prettyMinting (TxMintValue _ val _) = block "Minting:" [prettyValue val]
 
 prettyValidity :: (TxValidityLowerBound Era, TxValidityUpperBound Era) -> Doc
 prettyValidity (TxValidityNoLowerBound, TxValidityNoUpperBound{}) = "any"
-prettyValidity (lo, hi) = prettyLo lo <+> "-" <+> prettyHi hi
-  where
-    prettyLo TxValidityNoLowerBound        = "-∞"
-    prettyLo (TxValidityLowerBound _ slot) = text (show $ unSlotNo slot)
-    prettyHi TxValidityNoUpperBound{}      = "∞"
-    prettyHi (TxValidityUpperBound _ slot) = text (show $ unSlotNo slot)
+prettyValidity (lo, hi) = prettyLowerBound lo <+> "-" <+> prettyUpperBound hi
+
+prettyLowerBound :: TxValidityLowerBound Era -> Doc
+prettyLowerBound TxValidityNoLowerBound        = "-∞"
+prettyLowerBound (TxValidityLowerBound _ slot) = text (show $ unSlotNo slot)
+
+prettyUpperBound :: TxValidityUpperBound Era -> Doc
+prettyUpperBound TxValidityNoUpperBound{}      = "∞"
+prettyUpperBound (TxValidityUpperBound _ slot) = text (show $ unSlotNo slot)
 
 prettyTxModifier :: TxModifier -> Doc
 prettyTxModifier (TxModifier txmod) = vcat [prettyMod mod | mod <- txmod]
@@ -232,6 +235,13 @@ prettyTxModifier (TxModifier txmod) = vcat [prettyMod mod | mod <- txmod]
       fblock "addSimpleScriptInput" [ prettySimpleScript script
                                     , prettyValue value
                                     ]
+
+    prettyMod (ChangeValidityRange (Just lo) (Just hi)) =
+      fblock "changeValidityRange" [ prettyValidity (lo, hi) ]
+    prettyMod (ChangeValidityRange mlo mhi) =
+      vcat [ maybeBlock "changeValidityLowerBound" empty prettyLowerBound mlo
+           , maybeBlock "changeValidityUpperBound" empty prettyUpperBound mhi
+           ]
 
     prettyMod (ReplaceTx tx utxos) =
       fblock "replaceTx" [ prettyUTxO utxos

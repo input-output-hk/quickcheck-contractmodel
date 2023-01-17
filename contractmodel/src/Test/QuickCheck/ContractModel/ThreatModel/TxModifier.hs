@@ -100,6 +100,10 @@ data TxMod where
                     -> Maybe Redeemer
                     -> TxMod
 
+  ChangeValidityRange :: Maybe (TxValidityLowerBound Era)
+                      -> Maybe (TxValidityUpperBound Era)
+                      -> TxMod
+
   AddOutput :: AddressAny -> Value -> Datum -> TxMod
   AddInput  :: AddressAny -> Value -> Datum -> TxMod
 
@@ -125,6 +129,13 @@ applyTxModifier :: Tx Era -> UTxO Era -> TxModifier -> (Tx Era, UTxO Era)
 applyTxModifier tx utxos (TxModifier ms) = foldl (uncurry applyTxMod) (tx, utxos) ms
 
 applyTxMod :: Tx Era -> UTxO Era -> TxMod -> (Tx Era, UTxO Era)
+
+applyTxMod tx utxos (ChangeValidityRange mlo mhi) =
+    (Tx (ShelleyTxBody era body{Ledger.txvldt=validity'} scripts scriptData auxData scriptValidity) wits, utxos)
+  where
+    Tx bdy@(ShelleyTxBody era body scripts scriptData auxData scriptValidity) wits = tx
+    TxBody TxBodyContent{txValidityRange = (lo, hi)} = bdy
+    validity' = convValidityInterval (fromMaybe lo mlo, fromMaybe hi mhi)
 
 applyTxMod tx utxos (RemoveInput i) =
     (Tx (ShelleyTxBody era body{Ledger.inputs = inputs'} scripts scriptData' auxData validity) wits, utxos)
@@ -366,6 +377,18 @@ changeRedeemerOf :: Input -> Redeemer -> TxModifier
 changeRedeemerOf i r
   | isKeyAddressAny (addressOf i) = error "Cannot changeRedeemerOf public key input"
   | otherwise                     = txMod $ ChangeScriptInput (inputTxIn i) Nothing Nothing (Just r)
+
+-- | Change the validity range of the transaction.
+changeValidityRange :: (TxValidityLowerBound Era, TxValidityUpperBound Era) -> TxModifier
+changeValidityRange (lo, hi) = txMod $ ChangeValidityRange (Just lo) (Just hi)
+
+-- | Change the validity lower bound of the transaction.
+changeValidityLowerBound :: TxValidityLowerBound Era -> TxModifier
+changeValidityLowerBound lo = txMod $ ChangeValidityRange (Just lo) Nothing
+
+-- | Change the validity upper bound of the transaction.
+changeValidityUpperBound :: TxValidityUpperBound Era -> TxModifier
+changeValidityUpperBound hi = txMod $ ChangeValidityRange Nothing (Just hi)
 
 -- | The most general transaction modifier. Simply replace the original transaction and `UTxO` set
 --   by the given values. In most cases the modifiers above should be sufficient.

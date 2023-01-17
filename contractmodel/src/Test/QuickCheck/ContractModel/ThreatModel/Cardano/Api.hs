@@ -221,3 +221,16 @@ restrictUTxO :: Tx Era -> UTxO Era -> UTxO Era
 restrictUTxO (Tx (TxBody TxBodyContent{..}) _) (UTxO utxo) =
   UTxO $ Map.filterWithKey (\ k _ -> k `elem` map fst txIns) utxo
 
+convValidityInterval
+  :: (TxValidityLowerBound era, TxValidityUpperBound era)
+  -> ValidityInterval
+convValidityInterval (lowerBound, upperBound) =
+  ValidityInterval
+    { invalidBefore = case lowerBound of
+                        TxValidityNoLowerBound   -> SNothing
+                        TxValidityLowerBound _ s -> SJust s
+    , invalidHereafter = case upperBound of
+                           TxValidityNoUpperBound _ -> SNothing
+                           TxValidityUpperBound _ s -> SJust s
+    }
+

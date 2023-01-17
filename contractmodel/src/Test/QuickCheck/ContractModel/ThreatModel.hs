@@ -55,7 +55,7 @@ module Test.QuickCheck.ContractModel.ThreatModel
   , runThreatModel
   , assertThreatModel
   -- ** Preconditions
-  , precondition
+  , threatPrecondition
   , inPrecondition
   , ensure
   , ensureHasInputAt
@@ -248,22 +248,23 @@ assertThreatModel m params result = runThreatModel m envs
 --   transaction is skipped. If all transactions in an evaluation of `runThreatModel` are skipped
 --   it is considered a /discarded/ test for QuickCheck.
 --
---   Having the argument to `precondition` be a threat model computation instead of a plain boolean
---   allows you do express preconditions talking about the validation of modified transactions
---   (using `shouldValidate` and `shouldNotValidate`). See `ensure` for the boolean version.
-precondition :: ThreatModel a -> ThreatModel a
-precondition = \ case
+--   Having the argument to `threatPrecondition` be a threat model computation instead of a plain
+--   boolean allows you do express preconditions talking about the validation of modified
+--   transactions (using `shouldValidate` and `shouldNotValidate`). See `ensure` for the boolean
+--   version.
+threatPrecondition :: ThreatModel a -> ThreatModel a
+threatPrecondition = \ case
   Skip             -> Skip
   InPrecondition k -> k True
   Fail reason      -> Monitor (tabulate "Precondition failed with reason" [reason]) Skip
-  Validate tx k    -> Validate tx (precondition . k)
-  Generate g s k   -> Generate g s (precondition . k)
-  GetCtx k         -> GetCtx (precondition . k)
-  Monitor m k      -> Monitor m (precondition k)
-  MonitorLocal m k -> MonitorLocal m (precondition k)
+  Validate tx k    -> Validate tx (threatPrecondition . k)
+  Generate g s k   -> Generate g s (threatPrecondition . k)
+  GetCtx k         -> GetCtx (threatPrecondition . k)
+  Monitor m k      -> Monitor m (threatPrecondition k)
+  MonitorLocal m k -> MonitorLocal m (threatPrecondition k)
   Done a           -> Done a
 
--- | Same as `precondition` but takes a boolean and skips the test if the argument is @False@.
+-- | Same as `threatPrecondition` but takes a boolean and skips the test if the argument is @False@.
 ensure :: Bool -> ThreatModel ()
 ensure False = Skip
 ensure True  = pure ()
@@ -276,7 +277,7 @@ ensureHasInputAt addr = do
   inputs <- getTxInputs
   ensure $ any ((addr ==) . addressOf) inputs
 
--- | Returns @True@ if evaluated under a `precondition` and @False@ otherwise.
+-- | Returns @True@ if evaluated under a `threatPrecondition` and @False@ otherwise.
 inPrecondition :: ThreatModel Bool
 inPrecondition = InPrecondition Done
 

@@ -49,8 +49,8 @@ doubleSatisfaction = do
     paragraph [ "First we check that we cannot simply redirect the output to the signer,"
               , "i.e. the script actually cares about this output." ]
 
-  precondition $ shouldNotValidate $ changeValueOf output (valueOf output <> negateValue ada)
-                                  <> addOutput signer ada TxOutDatumNone
+  threatPrecondition $ shouldNotValidate $ changeValueOf output (valueOf output <> negateValue ada)
+                                        <> addOutput signer ada TxOutDatumNone
 
   counterexampleTM $
     paragraph [ "Now we try the same thing again, but this time there is another script"

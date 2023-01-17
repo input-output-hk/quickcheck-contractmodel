@@ -69,6 +69,7 @@ module Test.QuickCheck.ContractModel.ThreatModel
   , originalTx
   , getTxInputs
   , getTxOutputs
+  , getRedeemer
   -- ** Random generation
   , forAllTM
   , pickAny
@@ -340,6 +341,12 @@ getTxInputs = do
        | i <- txInputs tx
        , Just txout <- [Map.lookup i utxos]
        ]
+
+-- | Get the redeemer (if any) for an input of the original transaction.
+getRedeemer :: Input -> ThreatModel (Maybe Redeemer)
+getRedeemer (Input _ txIn) = do
+  tx <- originalTx
+  pure $ redeemerOfTxIn tx txIn
 
 -- | Generate a random value. Takes a QuickCheck generator and a `shrink` function.
 forAllTM :: Show a => Gen a -> (a -> [a]) -> ThreatModel a

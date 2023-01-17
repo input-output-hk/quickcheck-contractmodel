@@ -4,7 +4,7 @@ module Test.QuickCheck.ContractModel.ThreatModel.Cardano.Api where
 import Cardano.Api
 import Cardano.Api.Byron
 import Cardano.Api.Shelley
-import Cardano.Ledger.Alonzo.Tx qualified as Ledger (Data, hashData)
+import Cardano.Ledger.Alonzo.Tx qualified as Ledger (Data, hashData, indexOf)
 import Cardano.Ledger.Alonzo.TxWitness qualified as Ledger
 import Cardano.Ledger.Babbage.TxBody qualified as Ledger
 import Cardano.Ledger.Crypto (StandardCrypto)
@@ -40,6 +40,20 @@ valueOfTxOut (TxOut _ (TxOutValue _ v) _ _)   = v
 -- | Get the datum from a transaction output.
 datumOfTxOut :: TxOut ctx Era -> TxOutDatum ctx Era
 datumOfTxOut (TxOut _ _ datum _) = datum
+
+redeemerOfTxIn :: Tx Era -> TxIn -> Maybe ScriptData
+redeemerOfTxIn tx txIn = redeemer
+  where
+    Tx (ShelleyTxBody _ Ledger.TxBody{Ledger.inputs=inputs} _ scriptData _ _) _ = tx
+
+    redeemer = case scriptData of
+      TxBodyNoScriptData -> Nothing
+      TxBodyScriptData _ _ (Ledger.Redeemers rdmrs) ->
+        fromAlonzoData . fst <$> Map.lookup (Ledger.RdmrPtr Ledger.Spend idx) rdmrs
+
+    idx = case Ledger.indexOf (toShelleyTxIn txIn) inputs of
+      SJust idx -> idx
+      _         -> error "The impossible happened!"
 
 paymentCredentialToAddressAny :: PaymentCredential -> AddressAny
 paymentCredentialToAddressAny t =

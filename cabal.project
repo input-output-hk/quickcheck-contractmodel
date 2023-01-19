@@ -14,10 +14,11 @@ repository cardano-haskell-packages
 -- See CONTRIBUTING in github.com/input-ouput-hk/plutus for some Nix commands
 -- you will need to run if you update either of these.
 
--- Bump this if you need newer packages from Hackage
-index-state: 2022-11-14T00:20:02Z
--- Bump this if you need newer packages from CHaP
-index-state: cardano-haskell-packages 2022-11-17T04:56:26Z
+index-state:
+  -- Bump this if you need newer packages from Hackage
+  , hackage.haskell.org 2022-11-14T00:20:02Z
+  -- Bump this if you need newer packages from CHaP
+  , cardano-haskell-packages 2022-11-17T04:56:26Z
 
 packages:
   contractmodel

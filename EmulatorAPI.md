@@ -13,9 +13,7 @@ requires a function `getChainIndex` to get a chain index in your emulator:
 
 ```
 data ChainIndex = ChainIndex
-  { before       :: ChainState
-  , after        :: ChainState
-  , transactions :: [TxInState]
+  { transactions :: [TxInState]
   , networkId    :: NetworkId
   }
 

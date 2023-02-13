@@ -78,6 +78,8 @@ instance MonadTrans RunMonad where
   lift = RunMonad . lift
 
 type instance StateModel.Realized (RunMonad m) a = StateModel.Realized m a
+-- TODO: Because old version of qc-dynamic
+type instance StateModel.Realized (WriterT w m) a = StateModel.Realized m a
 
 type DefaultRealized m = ( StateModel.Realized m (Map String AssetId) ~ Map String AssetId
                          , StateModel.Realized m () ~ ()
@@ -86,14 +88,8 @@ type DefaultRealized m = ( StateModel.Realized m (Map String AssetId) ~ Map Stri
 class (DefaultRealized m, Monad m) => IsRunnable m where
   awaitSlot :: SlotNo -> m ()
 
--- TODO: the `DefaultRealized (WriterT w m)` constraint can
--- be rewritten to `DefaultRealized m` once we have updated
--- the qc-d dependency.
-instance (Monoid w, DefaultRealized (WriterT w m), IsRunnable m) => IsRunnable (WriterT w m) where
+instance (Monoid w, DefaultRealized m, IsRunnable m) => IsRunnable (WriterT w m) where
   awaitSlot = lift . awaitSlot
-
--- TODO: Because old version of qc-dynamic
-type instance StateModel.Realized (WriterT w m) a = StateModel.Realized m a
 
 instance (DefaultRealized m, IsRunnable m) => IsRunnable (StateT s m) where
   awaitSlot = lift . awaitSlot

@@ -26,19 +26,13 @@ data TxInState = TxInState
   , accepted   :: Bool
   }
 
--- TODO: before and after here can be completely ignored! We can't implement that right now
--- because we have a spiral dependency with plutus apps but eventually we will be able to!
 data ChainIndex = ChainIndex
-  { before       :: ChainState
-  , after        :: ChainState
-  , transactions :: [TxInState]
+  { transactions :: [TxInState]
   , networkId    :: NetworkId
   }
 
 instance Semigroup ChainIndex where
-  ci <> ci' = ChainIndex { before       = error "this code should be dead"
-                         , after        = error "this code should be dead"
-                         , transactions = sortBy (comparing (slot . chainState))
+  ci <> ci' = ChainIndex { transactions = sortBy (comparing (slot . chainState))
                                         $ transactions ci ++ transactions ci'
                          , networkId    = networkId ci
                          }
@@ -67,9 +61,7 @@ signerPaysFees nid TxInState{tx = tx, accepted = accepted}
 
 -- TODO: is this really safe?? also - why is this so complicated??
 mkAddrFromWitness :: NetworkId -> KeyWitness Era -> Address ShelleyAddr
-mkAddrFromWitness nid wit = makeShelleyAddress nid
-                                               (keyHashObj wit)
-                                               NoStakeAddress
+mkAddrFromWitness nid wit = makeShelleyAddress nid (keyHashObj wit) NoStakeAddress
   where keyHashObj :: KeyWitness Era -> PaymentCredential
         keyHashObj (ShelleyKeyWitness _ (WitVKey wit _)) =
             PaymentCredentialByKey

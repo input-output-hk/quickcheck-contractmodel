@@ -2,6 +2,7 @@ module Test.QuickCheck.ContractModel
   ( ContractModel(..)
   , RunModel(..)
   , IsRunnable(..)
+  , DefaultRealized
   , RunMonad(..)
   , Actions
   , Act(..)

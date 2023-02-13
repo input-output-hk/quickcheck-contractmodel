@@ -1,9 +1,12 @@
 module Test.QuickCheck.ContractModel.Internal.ChainIndex where
 
+import Control.Monad.State
+
 import Data.Ord
 import Data.List
 import Data.Map (Map)
 import Data.Map qualified as Map
+
 import Cardano.Api
 import Cardano.Api.Shelley
 import Cardano.Ledger.Shelley.TxBody (WitVKey (..))
@@ -23,7 +26,8 @@ data TxInState = TxInState
   , accepted   :: Bool
   }
 
--- TODO: this before-after stuff is a bit suspect!
+-- TODO: before and after here can be completely ignored! We can't implement that right now
+-- because we have a spiral dependency with plutus apps but eventually we will be able to!
 data ChainIndex = ChainIndex
   { before       :: ChainState
   , after        :: ChainState
@@ -32,8 +36,8 @@ data ChainIndex = ChainIndex
   }
 
 instance Semigroup ChainIndex where
-  ci <> ci' = ChainIndex { before       = minimumBy (comparing slot) [before ci, before ci']
-                         , after        = maximumBy (comparing slot) [after ci, after ci']
+  ci <> ci' = ChainIndex { before       = error "this code should be dead"
+                         , after        = error "this code should be dead"
                          , transactions = sortBy (comparing (slot . chainState))
                                         $ transactions ci ++ transactions ci'
                          , networkId    = networkId ci
@@ -93,3 +97,6 @@ txBalanceChanges (TxInState tx ChainState{..} accepted)
                                      | TxOut a v _ _ <- getTxInputs tx utxo
                                      ]
   | otherwise = error "TODO txBalanceChanges when removing collateral"
+
+instance (Monad m, HasChainIndex m) => HasChainIndex (StateT s m) where
+  getChainIndex = lift $ getChainIndex

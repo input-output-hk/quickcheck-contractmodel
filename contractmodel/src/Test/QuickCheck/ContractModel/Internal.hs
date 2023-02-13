@@ -5,6 +5,8 @@ module Test.QuickCheck.ContractModel.Internal where
 import Control.Lens
 import Control.Monad.Reader
 import Control.Monad.Writer
+import Control.Monad.State
+import Control.Monad.Error
 
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
@@ -54,7 +56,7 @@ class (ContractModel state, IsRunnable m) => RunModel state m where
 
 -- TODO: consider putting errors in this?
 newtype RunMonad m a = RunMonad { unRunMonad :: WriterT [(String, AssetId)] m a }
-  deriving (Functor, Applicative, Monad, MonadWriter [(String, AssetId)])
+  deriving (Functor, Applicative, Monad, MonadError e, MonadState s, MonadWriter [(String, AssetId)])
 
 liftRunMonad :: (forall a. m a -> n a) -> RunMonad m a -> RunMonad n a
 liftRunMonad f (RunMonad (WriterT m)) = RunMonad . WriterT $ f m
@@ -77,11 +79,27 @@ instance MonadTrans RunMonad where
 
 type instance StateModel.Realized (RunMonad m) a = StateModel.Realized m a
 
-class ( StateModel.Realized m (Map String AssetId) ~ Map String AssetId
-      , StateModel.Realized m () ~ ()
-      , Monad m
-      ) => IsRunnable m where
+type DefaultRealized m = ( StateModel.Realized m (Map String AssetId) ~ Map String AssetId
+                         , StateModel.Realized m () ~ ()
+                         )
+
+class (DefaultRealized m, Monad m) => IsRunnable m where
   awaitSlot :: SlotNo -> m ()
+
+-- TODO: the `DefaultRealized (WriterT w m)` constraint can
+-- be rewritten to `DefaultRealized m` once we have updated
+-- the qc-d dependency.
+instance (Monoid w, DefaultRealized (WriterT w m), IsRunnable m) => IsRunnable (WriterT w m) where
+  awaitSlot = lift . awaitSlot
+
+-- TODO: Because old version of qc-dynamic
+type instance StateModel.Realized (WriterT w m) a = StateModel.Realized m a
+
+instance (DefaultRealized m, IsRunnable m) => IsRunnable (StateT s m) where
+  awaitSlot = lift . awaitSlot
+
+instance (DefaultRealized m, IsRunnable m) => IsRunnable (ReaderT r m) where
+  awaitSlot = lift . awaitSlot
 
 instance (Monad m, HasChainIndex m) => HasChainIndex (RunMonad m) where
   getChainIndex = lift getChainIndex

@@ -31,6 +31,7 @@ import Test.QuickCheck
 import Test.QuickCheck.StateModel qualified as StateModel
 import Test.QuickCheck.ContractModel.Internal.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Spec
+import Test.QuickCheck.ContractModel.Internal.Common
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Data
@@ -38,12 +39,18 @@ import Data.Maybe
 import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.Generics as Generic
+import GHC.Word
 
 import Cardano.Api
 
 type HasActions state = ( Eq (Action state)
                         , Show (Action state)
+                        -- TODO: here we are re-using a bunch of stuff related to
+                        -- variables! That's not the right design!! I think we need
+                        -- a fundamental re-design of the variable stuff...
                         , HasSymTokens (Action state)
+                        , StateModel.HasVariables state
+                        , StateModel.HasVariables (Action state)
                         )
 
 class HasSymTokens a where
@@ -65,6 +72,18 @@ deriving via BaseType Int      instance HasSymTokens Int
 deriving via BaseType Char     instance HasSymTokens Char
 deriving via BaseType Value    instance HasSymTokens Value
 deriving via BaseType Quantity instance HasSymTokens Quantity
+-- TODO: update to these once the whole HasNoVariables gadget has been exported in
+-- the next release of quickcheck-dynamic
+-- deriving via StateModel.HasNoVariables T instance StateModel.HasVariables T
+instance StateModel.HasVariables (AddressInEra Era) where
+  getAllVariables _ = mempty
+instance StateModel.HasVariables Quantity where
+  getAllVariables _ = mempty
+instance StateModel.HasVariables Value where
+  getAllVariables _ = mempty
+-- TODO: this has been added downstream
+instance StateModel.HasVariables Word64 where
+  getAllVariables _ = mempty
 
 instance (HasSymTokens k, HasSymTokens v) => HasSymTokens (Map k v) where
   getAllSymTokens = getAllSymTokens . Map.toList
@@ -168,7 +187,7 @@ createsTokens :: ContractModel state
               -> Action state
               -> Bool
 createsTokens s a = ([] /=) $ State.evalState (runReaderT (snd <$> Writer.runWriterT (unSpec (nextState a)))
-                                                          (StateModel.Var 0)) s
+                                                          (StateModel.mkVar 0)) s
 
 -- | Wait the given number of slots. Updates the `currentSlot` of the model state.
 wait :: ContractModel state => Integer -> Spec state ()
@@ -198,6 +217,11 @@ contractAction :: ContractModel state
                -> StateModel.Action (ModelState state) (Map String AssetId)
 contractAction s a = ContractAction (createsTokens s a) a
 
+instance StateModel.HasVariables (Action state) =>
+          StateModel.HasVariables (StateModel.Action (ModelState state) a) where
+  getAllVariables WaitUntil{} = mempty
+  getAllVariables (ContractAction _ a) = StateModel.getAllVariables a
+
 instance ContractModel state => StateModel.StateModel (ModelState state) where
   data Action (ModelState state) a where
     ContractAction :: Bool
@@ -209,7 +233,7 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
   actionName (ContractAction _ act) = actionName act
   actionName (WaitUntil _)          = "WaitUntil"
 
-  arbitraryAction s =
+  arbitraryAction _ s =
     frequency [( floor $ 100.0*(1.0-waitProbability s)
                , do a <- arbitraryAction s
                     return (StateModel.Some (ContractAction (createsTokens s a) a)))
@@ -219,14 +243,14 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
             slot = s ^. currentSlot
             step n = slot + n
 
-  shrinkAction s (ContractAction _ a) =
+  shrinkAction _ s (ContractAction _ a) =
     [ StateModel.Some (WaitUntil (SlotNo n'))
-    | let SlotNo n = runSpec (nextState a) (StateModel.Var 0) s ^. currentSlot
+    | let SlotNo n = runSpec (nextState a) (StateModel.mkVar 0) s ^. currentSlot
     , n' <- n : shrink n
     , SlotNo n' > s ^. currentSlot ] ++
     [ StateModel.Some (contractAction s a')
     | a' <- shrinkAction s a ]
-  shrinkAction s (WaitUntil (SlotNo n)) =
+  shrinkAction _ s (WaitUntil (SlotNo n)) =
     [ StateModel.Some (WaitUntil (SlotNo n'))
     | n' <- shrink n
     , SlotNo n' > s ^. currentSlot ]
@@ -278,8 +302,8 @@ isBind Bind{} = True
 isBind _      = False
 
 instance ContractModel state => Show (Act state) where
-  showsPrec d (Bind (StateModel.Var i) a) = showParen (d >= 11)
-                                          $ showString ("tok" ++ show i ++ " := ") . showsPrec 0 a
+  showsPrec d (Bind v a) = showParen (d >= 11)
+                                          $ showString ("tok." ++ show v ++ " := ") . showsPrec 0 a
   showsPrec d (ActWaitUntil _ n)          = showParen (d >= 11)
                                           $ showString ("WaitUntil ") . showsPrec 11 n
   showsPrec d (NoBind _ a)                = showsPrec d a
@@ -308,16 +332,16 @@ fromStateModelActions (StateModel.Actions_ rs (Smart k s)) =
   Actions_ rs (Smart k (catMaybes $ map mkAct s))
   where
     mkAct :: StateModel.Step (ModelState s) -> Maybe (Act s)
-    mkAct (StateModel.Var i StateModel.:= ContractAction b act)
-          | b         = Just $ Bind   (StateModel.Var i) act
-          | otherwise = Just $ NoBind (StateModel.Var i) act
+    mkAct (v StateModel.:= ContractAction b act)
+          | b         = Just $ Bind   v act
+          | otherwise = Just $ NoBind v act
     mkAct (v StateModel.:= WaitUntil n) = Just $ ActWaitUntil v n
 
 dummyModelState :: state -> ModelState state
 dummyModelState s = ModelState 1 Map.empty mempty mempty mempty True s
 
 stateAfter :: ContractModel state => Actions state -> ModelState state
-stateAfter = StateModel.stateAfter . toStateModelActions
+stateAfter = StateModel.underlyingState . StateModel.stateAfter . toStateModelActions
 
 -- TODO: this should probably have a better name.
 -- Alternatively what we save in the

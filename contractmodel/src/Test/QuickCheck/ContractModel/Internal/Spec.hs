@@ -30,7 +30,7 @@ data ModelState state = ModelState
         , _assertionsOk   :: Bool
         , _contractState  :: state
         }
-  deriving (Show)
+  deriving (Show, Generic)
 
 instance Functor ModelState where
   fmap f m = m { _contractState = f (_contractState m) }

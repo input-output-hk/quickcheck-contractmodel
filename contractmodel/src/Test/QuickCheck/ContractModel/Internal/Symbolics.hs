@@ -9,7 +9,6 @@ import Test.QuickCheck.ContractModel.Internal.Common ()
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe
-import GHC.Generics
 import Text.PrettyPrint.HughesPJClass hiding ((<>))
 
 -- | A symbolic token is a token that exists only during ContractModel generation time
@@ -24,8 +23,11 @@ data SymValue = SymValue { symValMap     :: Map SymToken Quantity
                          }
   deriving (Show, Generic)
 
+instance HasVariables SymToken where
+  getAllVariables = getAllVariables . symVar
+
 instance Show SymToken where
-  show (SymToken (Var i) n) = "tok" ++ show i ++ "." ++ n
+  show (SymToken v n) = "tok." ++ show v ++ "." ++ n
 
 instance Semigroup SymValue where
   (SymValue m v) <> (SymValue m' v') = SymValue (Map.unionWith (+) m m') (v <> v')

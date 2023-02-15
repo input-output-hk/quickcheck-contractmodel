@@ -2,6 +2,8 @@ module Test.QuickCheck.ContractModel.DL where
 
 import Control.Monad
 
+import Data.Typeable
+
 import Test.QuickCheck.ContractModel.Internal.Model
 import Test.QuickCheck.ContractModel.Internal.Spec
 import Test.QuickCheck.DynamicLogic          qualified as DL
@@ -86,14 +88,31 @@ import Cardano.Api
 --   See `stopping` for more information on termination.
 type DL state = DL.DL (ModelState state)
 
--- | Generate a specific action. Fails if the action's `precondition` is not satisfied.
-action :: ContractModel state => Action state -> DL state ()
-action cmd = do
-  s <- getModelState
-  void $ DL.action (contractAction s cmd)
+-- This is a trick to let you write `action $ WaitUntil n` in your DL test.
+-- It helps you get around the fact that the DL test is printed in the qc-d world
+-- where actions are `StateModel.Action`s not `ContractModel.Action`s.
+-- So a DL counterexample will print like
+-- ```
+-- do action $ Offer
+--    action $ Bid 1 10
+--    action $ WaitUntil 10
+--    ...
+-- ```
+-- Which wouldn't be copy-pastable unless we had this trick.
+class ActionLike state a | a -> state where
+  -- | Generate a specific action. Fails if the action's `precondition` is not satisfied.
+  action :: a -> DL state ()
 
-waitUntilDL :: ContractModel state => SlotNo -> DL state ()
-waitUntilDL = void . DL.action . WaitUntil
+instance ContractModel state => ActionLike state (Action state) where
+  action cmd = do
+    s <- getModelState
+    void $ DL.action (contractAction s cmd)
+
+instance (ContractModel state, Typeable a) => ActionLike state (StateModel.Action (ModelState state) a) where
+  action cmd = void $ DL.action cmd
+
+waitUntilDL :: forall state. ContractModel state => SlotNo -> DL state ()
+waitUntilDL = action . WaitUntil
 
 -- | Generate a random action using `arbitraryAction`. The generated action is guaranteed to satisfy
 --   its `precondition`. Fails with `Stuck` if no action satisfying the precondition can be found

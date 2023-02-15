@@ -1,5 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE AllowAmbiguousTypes  #-}
+{-# OPTIONS_GHC -Wno-deprecations  #-}
 module Test.QuickCheck.ContractModel.Internal where
 
 import Control.Lens

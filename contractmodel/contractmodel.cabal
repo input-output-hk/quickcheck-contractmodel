@@ -23,6 +23,7 @@ maintainer:         maximilian.algehed@quviq.com
 common lang
   default-language:   Haskell2010
   default-extensions:
+    FunctionalDependencies
     RecordWildCards
     ViewPatterns
     DeriveFunctor

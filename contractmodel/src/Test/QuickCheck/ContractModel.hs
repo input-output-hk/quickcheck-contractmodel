@@ -8,6 +8,7 @@ module Test.QuickCheck.ContractModel
   , Act(..)
   , pattern Actions
   , pattern ContractAction
+  , pattern WaitUntil
   , stateAfter
   , runContractModel
   , liftRunMonad

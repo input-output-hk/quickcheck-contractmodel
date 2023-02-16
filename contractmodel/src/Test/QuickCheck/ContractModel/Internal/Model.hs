@@ -19,6 +19,7 @@ module Test.QuickCheck.ContractModel.Internal.Model
   , fromStateModelActions
   , dummyModelState
   , stateAfter
+  , annotatedStateAfter
   , asserts
   ) where
 
@@ -338,6 +339,9 @@ dummyModelState s = ModelState 1 Map.empty mempty mempty mempty True s
 
 stateAfter :: ContractModel state => Actions state -> ModelState state
 stateAfter = StateModel.underlyingState . StateModel.stateAfter . toStateModelActions
+
+annotatedStateAfter :: ContractModel state => Actions state -> StateModel.Annotated (ModelState state)
+annotatedStateAfter = StateModel.stateAfter . toStateModelActions
 
 -- TODO: this should probably have a better name.
 -- Alternatively what we save in the

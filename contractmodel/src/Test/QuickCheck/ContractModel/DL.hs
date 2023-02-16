@@ -252,13 +252,11 @@ forAllDL :: (ContractModel state, Testable p)
 forAllDL dl prop = DL.forAllMappedDL id id fromStateModelActions dl prop
 
 forAllUniqueDL :: forall state p. (ContractModel state, Testable p)
-               => Int
-               -> ModelState state
+               => StateModel.Annotated (ModelState state)
                -> DL state ()
                -> (Actions state -> p)
                -> Property
-forAllUniqueDL nextVar state dl prop = DL.forAllUniqueDL nextVar state' dl (prop . fromStateModelActions)
-  where state' = (StateModel.initialAnnotatedState @(ModelState state)) { StateModel.underlyingState = state }
+forAllUniqueDL state dl prop = DL.forAllUniqueDL state dl (prop . fromStateModelActions)
 
 instance ContractModel s => DL.DynLogicModel (ModelState s) where
     restricted (ContractAction _ act) = restricted act

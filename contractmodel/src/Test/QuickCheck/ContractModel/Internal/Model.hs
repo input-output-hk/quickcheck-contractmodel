@@ -39,7 +39,6 @@ import Data.Maybe
 import Data.Map (Map)
 import Data.Map qualified as Map
 import GHC.Generics as Generic
-import GHC.Word
 
 import Cardano.Api
 
@@ -80,9 +79,6 @@ instance StateModel.HasVariables (AddressInEra Era) where
 instance StateModel.HasVariables Quantity where
   getAllVariables _ = mempty
 instance StateModel.HasVariables Value where
-  getAllVariables _ = mempty
--- TODO: this has been added downstream
-instance StateModel.HasVariables Word64 where
   getAllVariables _ = mempty
 
 instance (HasSymTokens k, HasSymTokens v) => HasSymTokens (Map k v) where

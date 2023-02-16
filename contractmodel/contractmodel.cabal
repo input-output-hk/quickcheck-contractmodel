@@ -89,7 +89,7 @@ library
     -- QuickCheck dependencies
     build-depends:
       QuickCheck -any,
-      quickcheck-dynamic >= 3.0.0,
+      quickcheck-dynamic >= 3.0.2,
     -- Plutus and Cardano dependencies
     build-depends:
       cardano-api >= 1.35,

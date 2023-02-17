@@ -299,11 +299,12 @@ isBind Bind{} = True
 isBind _      = False
 
 instance ContractModel state => Show (Act state) where
-  showsPrec d (Bind v a) = showParen (d >= 11)
-                                          $ showString ("tok." ++ show v ++ " := ") . showsPrec 0 a
-  showsPrec d (ActWaitUntil _ n)          = showParen (d >= 11)
-                                          $ showString ("WaitUntil ") . showsPrec 11 n
-  showsPrec d (NoBind _ a)                = showsPrec d a
+  showsPrec d (Bind v a) =
+    showParen (d >= 11) $ showString ("tok." ++ show v ++ " := ") . showsPrec 0 a
+  showsPrec d (ActWaitUntil _ n) =
+    showParen (d >= 11) $ showString ("WaitUntil ") . showsPrec 11 n
+  showsPrec d (NoBind _ a) =
+    showsPrec d a
 
 instance ContractModel state => Show (Actions state) where
   showsPrec d (Actions as)

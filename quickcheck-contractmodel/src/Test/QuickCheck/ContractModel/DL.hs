@@ -6,6 +6,8 @@ import Data.Typeable
 
 import Test.QuickCheck.ContractModel.Internal.Model
 import Test.QuickCheck.ContractModel.Internal.Spec
+import Test.QuickCheck.ContractModel.Internal.ChainIndex
+import Test.QuickCheck.ContractModel.Internal.Symbolics
 import Test.QuickCheck.DynamicLogic          qualified as DL
 import Test.QuickCheck.StateModel            qualified as StateModel
 import Test.QuickCheck
@@ -110,6 +112,9 @@ instance ContractModel state => ActionLike state (Action state) where
 
 instance (ContractModel state, Typeable a) => ActionLike state (StateModel.Action (ModelState state) a) where
   action cmd = void $ DL.action cmd
+
+observe :: ContractModel state => String -> ((SymToken -> AssetId) -> ChainState -> Bool) -> DL state ()
+observe o p = action $ Observation o p
 
 waitUntilDL :: forall state. ContractModel state => SlotNo -> DL state ()
 waitUntilDL = action . WaitUntil
@@ -261,6 +266,7 @@ forAllUniqueDL state dl prop = DL.forAllUniqueDL state dl (prop . fromStateModel
 instance ContractModel s => DL.DynLogicModel (ModelState s) where
     restricted (ContractAction _ act) = restricted act
     restricted WaitUntil{}            = False
+    restricted Observation{}          = True
 
 instance GetModelState (DL state) where
     type StateType (DL state) = state

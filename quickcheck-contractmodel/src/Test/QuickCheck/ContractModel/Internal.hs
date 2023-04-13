@@ -86,7 +86,7 @@ type DefaultRealized m = ( StateModel.Realized m (Map String AssetId) ~ Map Stri
                          , StateModel.Realized m () ~ ()
                          )
 
-class (DefaultRealized m, Monad m) => IsRunnable m where
+class (DefaultRealized m, HasChainIndex m, Monad m) => IsRunnable m where
   awaitSlot :: SlotNo -> m ()
 
 instance (Monoid w, DefaultRealized m, IsRunnable m) => IsRunnable (WriterT w m) where
@@ -100,21 +100,25 @@ instance (DefaultRealized m, IsRunnable m) => IsRunnable (ReaderT r m) where
 
 instance (Monad m, HasChainIndex m) => HasChainIndex (RunMonad m) where
   getChainIndex = lift getChainIndex
+  getChainState = lift getChainState
 
 instance IsRunnable m => IsRunnable (RunMonad m) where
   awaitSlot = lift . awaitSlot
+
+-- Takes a `SymToken` and turns it into an `AssetId`
+translateToken :: (StateModel.Var (Map String AssetId) -> Map String AssetId) -> SymToken -> AssetId
+translateToken lookup token = case Map.lookup (symVarIdx token) (lookup $ symVar token) of
+  Just assetId -> assetId
+  Nothing      -> error $ "The impossible happend: uncaught missing registerToken call for token: " ++ show token
 
 instance ( IsRunnable m
          , RunModel state m
          ) => StateModel.RunModel (ModelState state) (RunMonad m) where
   perform st (ContractAction _ a) lookup = do
-      -- Takes a `SymToken` and turns it into an `AssetId`
-      let translate token = case Map.lookup (symVarIdx token) (lookup $ symVar token) of
-            Just assetId -> assetId
-            Nothing      -> error $ "The impossible happend: uncaught missing registerToken call for token: " ++ show token
       -- Run locally and get the registered tokens out
-      withLocalTokens $ perform st a translate
+      withLocalTokens $ perform st a (translateToken lookup)
   perform _ (WaitUntil slot) _ = awaitSlot slot
+  perform _ Observation{} _ = pure ()
 
   postcondition (st, _) (ContractAction _ act) _ tokens = do
     -- Ask the model what tokens we expected to be registered in this run.
@@ -125,6 +129,9 @@ instance ( IsRunnable m
     let expectedTokens = map symVarIdx $ tokensCreatedBy (nextState act) (StateModel.mkVar 0) st
     -- If we the `createToken` and `registerToken` tokens don't correspond we have an issue!
     pure $ sort (Map.keys tokens) == sort expectedTokens
+  postcondition _ (Observation _ p) lookup _ = do
+    cst <- getChainState
+    pure $ p (translateToken lookup) cst
   -- TODO: maybe add that current slot should equal the awaited slot?
   postcondition _ _ _ _ = pure True
 
@@ -149,6 +156,7 @@ instance ( IsRunnable m
     tabulate "Wait interval" (bucket 10 diff) .
     tabulate "Wait until" (bucket 10 _n)
     where SlotNo diff = n - s0 ^. currentSlot
+  monitoring _ Observation{} _ _ = id
 
 data ContractModelResult state = ContractModelResult
   { finalModelState :: ModelState state

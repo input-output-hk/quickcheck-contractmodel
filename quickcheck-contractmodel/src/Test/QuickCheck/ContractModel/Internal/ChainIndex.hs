@@ -1,6 +1,8 @@
 module Test.QuickCheck.ContractModel.Internal.ChainIndex where
 
 import Control.Monad.State
+import Control.Monad.Reader
+import Control.Monad.Writer
 
 import Data.Ord
 import Data.List
@@ -39,6 +41,7 @@ instance Semigroup ChainIndex where
 
 class HasChainIndex m where
   getChainIndex :: m ChainIndex
+  getChainState :: m ChainState
 
 allMinAda :: ChainIndex
           -> ProtocolParameters
@@ -92,3 +95,12 @@ txBalanceChanges (TxInState tx ChainState{..} accepted)
 
 instance (Monad m, HasChainIndex m) => HasChainIndex (StateT s m) where
   getChainIndex = lift $ getChainIndex
+  getChainState = lift $ getChainState
+
+instance (Monad m, HasChainIndex m) => HasChainIndex (ReaderT r m) where
+  getChainIndex = lift $ getChainIndex
+  getChainState = lift $ getChainState
+
+instance (Monad m, Monoid w, HasChainIndex m) => HasChainIndex (WriterT w m) where
+  getChainIndex = lift $ getChainIndex
+  getChainState = lift $ getChainState

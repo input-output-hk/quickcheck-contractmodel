@@ -1,20 +1,157 @@
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module Test.QuickCheck.ContractModel.Internal.Symbolics where
 
 import Cardano.Api
+import Control.Lens
 
 import Test.QuickCheck.StateModel
-import Test.QuickCheck.ContractModel.Internal.Common ()
+import Test.QuickCheck.ContractModel.Internal.Common (Era)
 
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Maybe
+import Data.Function
+import Barbies
+import Barbies.Constraints
 import Text.PrettyPrint.HughesPJClass hiding ((<>))
 
--- | A symbolic token is a token that exists only during ContractModel generation time
-data SymToken = SymToken { symVar    :: Var (Map String AssetId) -- TODO: this should not be exported to the public interface
-                         , symVarIdx :: String
-                         } deriving (Eq, Ord)
+------------------------------------------------------------------------
+-- The Barbie
+------------------------------------------------------------------------
+
+data SymIndexF f = SymIndex { _tokens :: f AssetId
+                            , _utxos  :: f (TxOut CtxUTxO Era)
+                            } deriving Generic
+makeLenses ''SymIndexF
+
+instance ConstraintsB SymIndexF
+instance FunctorB SymIndexF
+instance ApplicativeB SymIndexF
+instance TraversableB SymIndexF
+
+deriving instance AllBF Show f SymIndexF => Show (SymIndexF f)
+deriving instance AllBF Eq f SymIndexF => Eq (SymIndexF f)
+
+class HasSymbolicRep t where
+  symIndexL :: Lens' (SymIndexF f) (f t)
+
+instance HasSymbolicRep (TxOut CtxUTxO Era) where
+  symIndexL = utxos
+
+instance HasSymbolicRep AssetId where
+  symIndexL = tokens
+
+-- Semigroup and Monoids --------------------------------------------------
+
+bmapConst :: FunctorB b => (forall a. f a -> c) -> b f -> Container b c
+bmapConst f b = Container $ bmap (Const . f) b
+
+mappendSymIndexF :: forall f. (AllBF Semigroup f SymIndexF, Show (SymIndexF f))
+                 => (forall a. f a -> Set String)
+                 -> SymIndexF f
+                 -> SymIndexF f
+                 -> SymIndexF f
+mappendSymIndexF toSet s s'
+  | and (Set.disjoint <$> bmapConst toSet s
+                      <*> bmapConst toSet s') = bzipWithC @(ClassF Semigroup f) (<>) s s'
+  | otherwise = error $ unlines [ "Non-unique SymIndexF" ]
+
+instance Semigroup SymIndex where
+  (<>) = mappendSymIndexF Map.keysSet
+
+instance Semigroup SymCreationIndex where
+  (<>) = mappendSymIndexF getConst
+
+instance Semigroup SymCollectionIndex where
+  (<>) = bzipWith (<>)
+
+instance (AllBF Monoid f SymIndexF, Semigroup (SymIndexF f)) => Monoid (SymIndexF f) where
+  mempty = bmempty
+
+------------------------------------------------------------------------
+-- Applications
+------------------------------------------------------------------------
+
+-- | For an assumed variable, what's the mapping of String indices to
+-- underlying actual values. This is what is returned by a contract model
+-- action when it runs.
+type SymIndex = SymIndexF (Map String)
+
+symIndex :: HasSymbolicRep t => String -> t -> SymIndex
+symIndex s t = mempty & symIndexL . at s .~ Just t
+
+-- | For a given action, what are the String indices used to construct
+-- symbolic variables when this action ran. NOTE: this purposefully does
+-- not include the variable because we might want to fake the variable
+-- with `Var 0` in some cases. See comment somewhere for why this is
+-- safe...
+type SymCreationIndex = SymIndexF (Const (Set String))
+
+toCreationIndex :: SymIndex -> SymCreationIndex
+toCreationIndex = bmap (Const . Map.keysSet)
+
+createIndex :: forall t. HasSymbolicRep t
+            => String -> SymCreationIndex
+createIndex s = mempty & symIndexL @t .~ Const (Set.singleton s)
+
+-- | What symbolic variables have been created in a given run of the
+-- `Spec` monad?
+type SymCollectionIndex = SymIndexF SymSet
+
+newtype SymSet t = SymSet { unSymSet :: Set (Symbolic t) }
+  deriving (Semigroup, Monoid, Generic)
+
+deriving instance Show (Symbolic t) => Show (SymSet t)
+
+instance Functor SymSet where
+  fmap _ (SymSet set) = SymSet (Set.mapMonotonic (\ (Symbolic v s) -> Symbolic v s) set)
+
+symCollect :: HasSymbolicRep t
+           => Symbolic t -> SymCollectionIndex
+symCollect s = mempty & symIndexL .~ (SymSet $ Set.singleton s)
+
+makeSymCollection :: SymCreationIndex -> Var SymIndex -> SymCollectionIndex
+makeSymCollection ci v = bmap (SymSet . Set.mapMonotonic (Symbolic v) . getConst) ci
+
+symCollectionSubset :: SymCollectionIndex -> SymCollectionIndex -> Bool
+symCollectionSubset s0 s1 = and . Container $ bzipWith ((Const .) . Set.isSubsetOf `on` unSymSet) s0 s1
+
+------------------------------------------------------------------------
+-- Symbolic representations
+------------------------------------------------------------------------
+
+data Symbolic t = Symbolic { symVar :: Var SymIndex
+                           , symVarIdx :: String
+                           } deriving (Eq, Ord)
+
+getSymbolics :: forall t. HasSymbolicRep t
+             => SymCreationIndex -> Var SymIndex -> Set (Symbolic t)
+getSymbolics idx v = makeSymCollection idx v ^. symIndexL @t . to unSymSet
+
+instance HasVariables (Symbolic t) where
+  getAllVariables = getAllVariables . symVar
+
+lookupSymbolic :: HasSymbolicRep t => SymIndex -> Symbolic t -> Maybe t
+lookupSymbolic idx s = idx ^. symIndexL . at (symVarIdx s)
+
+-- | A SymTxOut is a `TxOut CtxUTxO Era` that is only available at runtime
+type SymTxOut = Symbolic (TxOut CtxUTxO Era)
+
+instance Show SymTxOut where
+  show (Symbolic v n) = "txOut." ++ show v ++ "." ++ n
+
+-- | A symbolic token is a token that is only available at runtime
+type SymToken = Symbolic AssetId
+
+instance Show SymToken where
+  show (Symbolic v n) = "tok." ++ show v ++ "." ++ n
+
+-- Symbolic values --------------------------------------------------------
 
 -- | A symbolic value is a combination of a real value and a value associating symbolic
 -- tokens with an amount
@@ -23,11 +160,6 @@ data SymValue = SymValue { symValMap     :: Map SymToken Quantity
                          }
   deriving (Show, Generic)
 
-instance HasVariables SymToken where
-  getAllVariables = getAllVariables . symVar
-
-instance Show SymToken where
-  show (SymToken v n) = "tok." ++ show v ++ "." ++ n
 
 instance Semigroup SymValue where
   (SymValue m v) <> (SymValue m' v') = SymValue (Map.unionWith (+) m m') (v <> v')

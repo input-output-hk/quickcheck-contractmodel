@@ -4,7 +4,7 @@ module Test.QuickCheck.ContractModel.Internal.Model
   , BaseType(..)
   , GenericHasSymTokens(..)
   , ContractModel(..)
-  , createsTokens
+  , createsSymbolics
   , wait
   , waitUntil
   , contractAction
@@ -35,8 +35,6 @@ import Test.QuickCheck.ContractModel.Internal.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Spec
 import Test.QuickCheck.ContractModel.Internal.Common
 import Test.QuickCheck.ContractModel.Internal.ChainIndex
-import Data.Set (Set)
-import Data.Set qualified as Set
 import Data.Data
 import Data.Maybe
 import Data.Map (Map)
@@ -47,66 +45,58 @@ import Cardano.Api
 
 type HasActions state = ( Eq (Action state)
                         , Show (Action state)
-                        -- TODO: here we are re-using a bunch of stuff related to
-                        -- variables! That's not the right design!! I think we need
-                        -- a fundamental re-design of the variable stuff...
                         , HasSymTokens (Action state)
                         , StateModel.HasVariables state
                         , StateModel.HasVariables (Action state)
                         )
 
 class HasSymTokens a where
-  getAllSymTokens :: a -> Set SymToken
+  getAllSymbolics :: a -> SymCollectionIndex
 
-  default getAllSymTokens :: (Generic a, GenericHasSymTokens (Rep a)) => a -> Set SymToken
-  getAllSymTokens = genericGetAllSymTokens . Generic.from
+  default getAllSymbolics :: (Generic a, GenericHasSymTokens (Rep a)) => a -> SymCollectionIndex
+  getAllSymbolics = genericGetAllSymbolics . Generic.from
 
 newtype BaseType a = BaseType a
 
-instance HasSymTokens SymToken where
-  getAllSymTokens = Set.singleton
+instance HasSymbolicRep t => HasSymTokens (Symbolic t) where
+  getAllSymbolics = symCollect
 
 instance HasSymTokens (BaseType a) where
-  getAllSymTokens _ = mempty
+  getAllSymbolics _ = mempty
 
 deriving via BaseType Integer  instance HasSymTokens Integer
 deriving via BaseType Int      instance HasSymTokens Int
 deriving via BaseType Char     instance HasSymTokens Char
 deriving via BaseType Value    instance HasSymTokens Value
 deriving via BaseType Quantity instance HasSymTokens Quantity
--- TODO: update to these once the whole HasNoVariables gadget has been exported in
--- the next release of quickcheck-dynamic
--- deriving via StateModel.HasNoVariables T instance StateModel.HasVariables T
-instance StateModel.HasVariables (AddressInEra Era) where
-  getAllVariables _ = mempty
-instance StateModel.HasVariables Quantity where
-  getAllVariables _ = mempty
-instance StateModel.HasVariables Value where
-  getAllVariables _ = mempty
+
+deriving via StateModel.HasNoVariables (AddressInEra Era) instance StateModel.HasVariables (AddressInEra Era)
+deriving via StateModel.HasNoVariables Quantity instance StateModel.HasVariables Quantity
+deriving via StateModel.HasNoVariables Value instance StateModel.HasVariables Value
 
 instance (HasSymTokens k, HasSymTokens v) => HasSymTokens (Map k v) where
-  getAllSymTokens = getAllSymTokens . Map.toList
+  getAllSymbolics = getAllSymbolics . Map.toList
 
 instance {-# OVERLAPPABLE #-} (Generic a, GenericHasSymTokens (Rep a)) => HasSymTokens a
 
 class GenericHasSymTokens f where
-  genericGetAllSymTokens :: f k -> Set SymToken
+  genericGetAllSymbolics :: f k -> SymCollectionIndex
 
 instance GenericHasSymTokens f => GenericHasSymTokens (M1 i c f) where
-  genericGetAllSymTokens = genericGetAllSymTokens . unM1
+  genericGetAllSymbolics = genericGetAllSymbolics . unM1
 
 instance HasSymTokens c => GenericHasSymTokens (K1 i c) where
-  genericGetAllSymTokens = getAllSymTokens . unK1
+  genericGetAllSymbolics = getAllSymbolics . unK1
 
 instance GenericHasSymTokens U1 where
-  genericGetAllSymTokens _ = mempty
+  genericGetAllSymbolics _ = mempty
 
 instance (GenericHasSymTokens f, GenericHasSymTokens g) => GenericHasSymTokens (f :*: g) where
-  genericGetAllSymTokens (x :*: y) = genericGetAllSymTokens x <> genericGetAllSymTokens y
+  genericGetAllSymbolics (x :*: y) = genericGetAllSymbolics x <> genericGetAllSymbolics y
 
 instance (GenericHasSymTokens f, GenericHasSymTokens g) => GenericHasSymTokens (f :+: g) where
-  genericGetAllSymTokens (L1 x) = genericGetAllSymTokens x
-  genericGetAllSymTokens (R1 x) = genericGetAllSymTokens x
+  genericGetAllSymbolics (L1 x) = genericGetAllSymbolics x
+  genericGetAllSymbolics (R1 x) = genericGetAllSymbolics x
 
 -- | A `ContractModel` instance captures everything that is needed to generate and run tests of a
 --   contract or set of contracts. It specifies among other things
@@ -181,11 +171,11 @@ class ( Typeable state
     restricted _ = False
 
 -- | Check if a given action creates new symbolic tokens in a given `ModelState`
-createsTokens :: ContractModel state
-              => ModelState state
-              -> Action state
-              -> Bool
-createsTokens s a = ([] /=) $ State.evalState (runReaderT (snd <$> Writer.runWriterT (unSpec (nextState a)))
+createsSymbolics :: ContractModel state
+                 => ModelState state
+                 -> Action state
+                 -> Bool
+createsSymbolics s a = (mempty /=) $ State.evalState (runReaderT (snd <$> Writer.runWriterT (unSpec (nextState a)))
                                                           (StateModel.mkVar 0)) s
 
 -- | Wait the given number of slots. Updates the `currentSlot` of the model state.
@@ -218,8 +208,8 @@ instance ContractModel state => Eq (StateModel.Action (ModelState state) a) wher
 contractAction :: ContractModel state
                => ModelState state
                -> Action state
-               -> StateModel.Action (ModelState state) (Map String AssetId)
-contractAction s a = ContractAction (createsTokens s a) a
+               -> StateModel.Action (ModelState state) SymIndex
+contractAction s a = ContractAction (createsSymbolics s a) a
 
 instance StateModel.HasVariables (Action state) =>
           StateModel.HasVariables (StateModel.Action (ModelState state) a) where
@@ -231,7 +221,7 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
   data Action (ModelState state) a where
     ContractAction :: Bool
                    -> Action state
-                   -> StateModel.Action (ModelState state) (Map String AssetId)
+                   -> StateModel.Action (ModelState state) SymIndex
     Observation :: String
                 -- Note: the `SymToken -> AssetId` argument is necessary because
                 -- when the user calls `observe` in their DL property to issue one
@@ -250,7 +240,7 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
   arbitraryAction _ s =
     frequency [( floor $ 100.0*(1.0-waitProbability s)
                , do a <- arbitraryAction s
-                    return (StateModel.Some (ContractAction (createsTokens s a) a)))
+                    return (StateModel.Some (ContractAction (createsSymbolics s a) a)))
               ,( floor $ 100.0*waitProbability s
                , StateModel.Some . WaitUntil . step <$> arbitraryWaitInterval s)]
         where
@@ -275,7 +265,7 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
                             , _minted           = mempty
                             , _assertions       = mempty
                             , _assertionsOk     = True
-                            , _symTokens        = mempty
+                            , _symbolics        = mempty
                             , _contractState    = initialState
                             }
 
@@ -284,12 +274,12 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
   nextState s (Observation _ _) _      = s
 
   -- Note that the order of the preconditions in this case matter - we want to run
-  -- `getAllSymTokens` last because its likely to be stricter than the user precondition
+  -- `getAllSymbolics` last because its likely to be stricter than the user precondition
   -- and so if the user relies on the lazyness of the Gen monad by using the precondition
   -- to avoid duplicate checks in the precondition and generator we don't screw that up.
   precondition s (ContractAction _ cmd) = s ^. assertionsOk
                                         && precondition s cmd
-                                        && getAllSymTokens cmd `Set.isSubsetOf` (s ^. symTokens)
+                                        && getAllSymbolics cmd `symCollectionSubset` (s ^. symbolics)
   precondition s (WaitUntil n)          = n > s ^. currentSlot
   precondition _ Observation{}          = True
 
@@ -301,8 +291,8 @@ pattern Actions :: [Act s] -> Actions s
 pattern Actions as <- Actions_ _ (Smart _ as) where
   Actions as = Actions_ [] (Smart 0 as)
 
-data Act s = Bind   {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
-           | NoBind {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
+data Act s = Bind   {varOf :: StateModel.Var SymIndex, actionOf :: Action s}
+           | NoBind {varOf :: StateModel.Var SymIndex, actionOf :: Action s}
            | ActWaitUntil (StateModel.Var ()) SlotNo
            | ActObservation (StateModel.Var ()) String ((SymToken -> AssetId) -> ChainState -> Bool)
 

@@ -11,6 +11,7 @@ module Test.QuickCheck.ContractModel.Internal.Model
   , Actions(..)
   , pattern ContractAction
   , pattern WaitUntil
+  , pattern Observation
   , pattern Actions
   , Act(..)
   , mapActions
@@ -33,6 +34,7 @@ import Test.QuickCheck.StateModel qualified as StateModel
 import Test.QuickCheck.ContractModel.Internal.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Spec
 import Test.QuickCheck.ContractModel.Internal.Common
+import Test.QuickCheck.ContractModel.Internal.ChainIndex
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Data
@@ -205,8 +207,13 @@ waitUntil n = do
 instance ContractModel state => Show (StateModel.Action (ModelState state) a) where
     showsPrec p (ContractAction _ a) = showsPrec p a
     showsPrec p (WaitUntil n)        = showParen (p >= 11) $ showString "WaitUntil " . showsPrec 11 n
+    showsPrec _ o@Observation{}      = showString $ StateModel.actionName o
 
-deriving instance ContractModel state => Eq (StateModel.Action (ModelState state) a)
+instance ContractModel state => Eq (StateModel.Action (ModelState state) a) where
+  ContractAction b a == ContractAction b' a' = (b, a) == (b', a')
+  WaitUntil s == WaitUntil s'                = s == s'
+  Observation o _ == Observation o' _        = o == o'
+  _ == _                                     = False
 
 contractAction :: ContractModel state
                => ModelState state
@@ -216,19 +223,29 @@ contractAction s a = ContractAction (createsTokens s a) a
 
 instance StateModel.HasVariables (Action state) =>
           StateModel.HasVariables (StateModel.Action (ModelState state) a) where
-  getAllVariables WaitUntil{} = mempty
   getAllVariables (ContractAction _ a) = StateModel.getAllVariables a
+  getAllVariables WaitUntil{}          = mempty
+  getAllVariables Observation{}        = mempty
 
 instance ContractModel state => StateModel.StateModel (ModelState state) where
   data Action (ModelState state) a where
     ContractAction :: Bool
                    -> Action state
                    -> StateModel.Action (ModelState state) (Map String AssetId)
+    Observation :: String
+                -- Note: the `SymToken -> AssetId` argument is necessary because
+                -- when the user calls `observe` in their DL property to issue one
+                -- of these actions they are at _generation time_ so can't do `SymToken`
+                -- resolution up-front, instead it has to happen in the `perform`
+                -- for the `Observation` action.
+                -> ((SymToken -> AssetId) -> ChainState -> Bool)
+                -> StateModel.Action (ModelState state) ()
     WaitUntil :: SlotNo
               -> StateModel.Action (ModelState state) ()
 
   actionName (ContractAction _ act) = actionName act
-  actionName (WaitUntil _)          = "WaitUntil"
+  actionName WaitUntil{}            = "WaitUntil"
+  actionName (Observation n _)      = "Observation[" ++ n ++ "]"
 
   arbitraryAction _ s =
     frequency [( floor $ 100.0*(1.0-waitProbability s)
@@ -251,6 +268,7 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
     [ StateModel.Some (WaitUntil (SlotNo n'))
     | n' <- shrink n
     , SlotNo n' > s ^. currentSlot ]
+  shrinkAction _ _ Observation{} = []
 
   initialState = ModelState { _currentSlot      = 1
                             , _balanceChanges   = mempty
@@ -263,6 +281,7 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
 
   nextState s (ContractAction _ cmd) v = runSpec (nextState cmd) v s
   nextState s (WaitUntil n) _          = runSpec (() <$ waitUntil n) (error "unreachable") s
+  nextState s (Observation _ _) _      = s
 
   -- Note that the order of the preconditions in this case matter - we want to run
   -- `getAllSymTokens` last because its likely to be stricter than the user precondition
@@ -272,6 +291,7 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
                                         && precondition s cmd
                                         && getAllSymTokens cmd `Set.isSubsetOf` (s ^. symTokens)
   precondition s (WaitUntil n)          = n > s ^. currentSlot
+  precondition _ Observation{}          = True
 
 -- We include a list of rejected action names.
 data Actions s = Actions_ [String] (Smart [Act s])
@@ -284,15 +304,22 @@ pattern Actions as <- Actions_ _ (Smart _ as) where
 data Act s = Bind   {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
            | NoBind {varOf :: StateModel.Var (Map String AssetId), actionOf :: Action s}
            | ActWaitUntil (StateModel.Var ()) SlotNo
+           | ActObservation (StateModel.Var ()) String ((SymToken -> AssetId) -> ChainState -> Bool)
 
 mapActions :: (Action s -> Action s') -> Actions s -> Actions s'
 mapActions f (Actions_ rej (Smart n as)) = Actions_ rej $ Smart n $ map mapAct as
   where
-    mapAct (Bind x a)         = Bind x (f a)
-    mapAct (NoBind x a)       = NoBind x (f a)
-    mapAct (ActWaitUntil x n) = ActWaitUntil x n
+    mapAct (Bind x a)             = Bind x (f a)
+    mapAct (NoBind x a)           = NoBind x (f a)
+    mapAct (ActWaitUntil x n)     = ActWaitUntil x n
+    mapAct (ActObservation x n p) = ActObservation x n p
 
-deriving instance ContractModel s => Eq (Act s)
+instance ContractModel s => Eq (Act s) where
+  Bind v a             == Bind v' a'             = (v, a) == (v', a')
+  NoBind v a           == NoBind v' a'           = (v, a) == (v', a')
+  ActWaitUntil v s     == ActWaitUntil v' s'     = (v, s) == (v', s')
+  ActObservation v n _ == ActObservation v' n' _ = (v, n) == (v', n')
+  _                    == _                      = False
 
 isBind :: Act s -> Bool
 isBind Bind{} = True
@@ -301,8 +328,8 @@ isBind _      = False
 instance ContractModel state => Show (Act state) where
   showsPrec d (Bind v a) =
     showParen (d >= 11) $ showString ("tok." ++ show v ++ " := ") . showsPrec 0 a
-  showsPrec d (ActWaitUntil _ n) =
-    showParen (d >= 11) $ showString ("WaitUntil ") . showsPrec 11 n
+  showsPrec d (ActWaitUntil _ n) = showsPrec d (WaitUntil @state n)
+  showsPrec d (ActObservation _ n p) = showsPrec d (Observation @state n p)
   showsPrec d (NoBind _ a) =
     showsPrec d a
 
@@ -323,6 +350,7 @@ toStateModelActions :: ContractModel state =>
 toStateModelActions (Actions_ rs (Smart k s)) =
   StateModel.Actions_ rs (Smart k $ map mkStep s)
     where mkStep (ActWaitUntil v n) = v StateModel.:= WaitUntil n
+          mkStep (ActObservation v n p) = v StateModel.:= Observation n p
           mkStep act                = varOf act StateModel.:= ContractAction (isBind act) (actionOf act)
 
 fromStateModelActions :: StateModel.Actions (ModelState s) -> Actions s
@@ -334,6 +362,7 @@ fromStateModelActions (StateModel.Actions_ rs (Smart k s)) =
           | b         = Just $ Bind   v act
           | otherwise = Just $ NoBind v act
     mkAct (v StateModel.:= WaitUntil n) = Just $ ActWaitUntil v n
+    mkAct (v StateModel.:= Observation n p) = Just $ ActObservation v n p
 
 dummyModelState :: state -> ModelState state
 dummyModelState s = ModelState 1 Map.empty mempty mempty mempty True s

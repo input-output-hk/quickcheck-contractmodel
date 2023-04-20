@@ -120,7 +120,7 @@ data TxMod where
 
   ReplaceTx :: Tx Era -> UTxO Era -> TxMod
 
-  deriving (Show)
+  deriving stock (Show)
 
 txMod :: TxMod -> TxModifier
 txMod m = TxModifier [m]

@@ -56,7 +56,7 @@ class (ContractModel state, IsRunnable m) => RunModel state m where
 
 -- TODO: consider putting errors in this?
 newtype RunMonad m a = RunMonad { unRunMonad :: WriterT SymIndex m a }
-  deriving (Functor, Applicative, Monad, MonadError e, MonadState s, MonadWriter SymIndex)
+  deriving newtype (Functor, Applicative, Monad, MonadError e, MonadState s, MonadWriter SymIndex)
 
 liftRunMonad :: (forall a. m a -> n a) -> RunMonad m a -> RunMonad n a
 liftRunMonad f (RunMonad (WriterT m)) = RunMonad . WriterT $ f m

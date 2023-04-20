@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
-{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module Test.QuickCheck.ContractModel.Internal.Symbolics where
@@ -26,13 +25,9 @@ import Text.PrettyPrint.HughesPJClass hiding ((<>))
 
 data SymIndexF f = SymIndex { _tokens :: f AssetId
                             , _utxos  :: f (TxOut CtxUTxO Era)
-                            } deriving Generic
+                            } deriving stock Generic
+                              deriving anyclass (ConstraintsB, FunctorB, ApplicativeB, TraversableB)
 makeLenses ''SymIndexF
-
-instance ConstraintsB SymIndexF
-instance FunctorB SymIndexF
-instance ApplicativeB SymIndexF
-instance TraversableB SymIndexF
 
 deriving instance AllBF Show f SymIndexF => Show (SymIndexF f)
 deriving instance AllBF Eq f SymIndexF => Eq (SymIndexF f)
@@ -59,7 +54,7 @@ mappendSymIndexF :: forall f. (AllBF Semigroup f SymIndexF, Show (SymIndexF f))
 mappendSymIndexF toSet s s'
   | and (Set.disjoint <$> bmapConst toSet s
                       <*> bmapConst toSet s') = bzipWithC @(ClassF Semigroup f) (<>) s s'
-  | otherwise = error $ unlines [ "Non-unique SymIndexF" ]
+  | otherwise = error $ unlines [ "Non-unique SymIndexF", show s, show s' ]
 
 instance Semigroup SymIndex where
   (<>) = mappendSymIndexF Map.keysSet
@@ -104,7 +99,8 @@ createIndex s = mempty & symIndexL @t .~ Const (Set.singleton s)
 type SymCollectionIndex = SymIndexF SymSet
 
 newtype SymSet t = SymSet { unSymSet :: Set (Symbolic t) }
-  deriving (Semigroup, Monoid, Generic)
+  deriving stock Generic
+  deriving newtype (Semigroup, Monoid)
 
 deriving instance Show (Symbolic t) => Show (SymSet t)
 
@@ -127,7 +123,7 @@ symCollectionSubset s0 s1 = and . Container $ bzipWith ((Const .) . Set.isSubset
 
 data Symbolic t = Symbolic { symVar :: Var SymIndex
                            , symVarIdx :: String
-                           } deriving (Eq, Ord)
+                           } deriving stock (Eq, Ord)
 
 getSymbolics :: forall t. HasSymbolicRep t
              => SymCreationIndex -> Var SymIndex -> Set (Symbolic t)
@@ -158,7 +154,7 @@ instance Show SymToken where
 data SymValue = SymValue { symValMap     :: Map SymToken Quantity
                          , actualValPart :: Value
                          }
-  deriving (Show, Generic)
+  deriving stock (Show, Generic)
 
 
 instance Semigroup SymValue where

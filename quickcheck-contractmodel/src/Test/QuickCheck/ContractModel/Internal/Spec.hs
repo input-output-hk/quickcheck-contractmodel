@@ -28,7 +28,7 @@ data ModelState state = ModelState
         , _assertionsOk   :: Bool
         , _contractState  :: state
         }
-  deriving (Show, Generic)
+  deriving stock (Show, Generic)
 
 instance Functor ModelState where
   fmap f m = m { _contractState = f (_contractState m) }
@@ -37,7 +37,7 @@ instance Functor ModelState where
 --   of newly created symbolic tokens. It is used exclusively by the `nextState` function to model the effects
 --   of an action on the blockchain.
 newtype Spec state a = Spec { unSpec :: WriterT SymCreationIndex (ReaderT (Var SymIndex) (State (ModelState state))) a }
-    deriving (Functor, Applicative, Monad)
+    deriving newtype (Functor, Applicative, Monad)
 
 coerceSpec :: forall s s' a. Coercible s s' => Spec s a -> Spec s' a
 coerceSpec (Spec spec) = do

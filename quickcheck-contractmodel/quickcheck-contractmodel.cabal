@@ -51,6 +51,7 @@ common lang
     DerivingVia
     TypeOperators
     OverloadedStrings
+    DeriveAnyClass
 
   ghc-options:
     -Wall -Wnoncanonical-monad-instances -Wunused-packages

@@ -20,7 +20,6 @@ import Test.QuickCheck.ContractModel.Internal.Utils
 import Test.QuickCheck.ContractModel.Internal.Common
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.List
 import Data.Maybe
 import Text.PrettyPrint.HughesPJClass hiding ((<>))
 
@@ -50,14 +49,14 @@ class (ContractModel state, IsRunnable m) => RunModel state m where
   monitoring :: (ModelState state, ModelState state)
              -> Action state
              -> (SymToken -> AssetId)
-             -> Map String AssetId
+             -> SymIndex
              -> Property
              -> Property
   monitoring _ _ _ _ prop = prop
 
 -- TODO: consider putting errors in this?
-newtype RunMonad m a = RunMonad { unRunMonad :: WriterT [(String, AssetId)] m a }
-  deriving (Functor, Applicative, Monad, MonadError e, MonadState s, MonadWriter [(String, AssetId)])
+newtype RunMonad m a = RunMonad { unRunMonad :: WriterT SymIndex m a }
+  deriving newtype (Functor, Applicative, Monad, MonadError e, MonadState s, MonadWriter SymIndex)
 
 liftRunMonad :: (forall a. m a -> n a) -> RunMonad m a -> RunMonad n a
 liftRunMonad f (RunMonad (WriterT m)) = RunMonad . WriterT $ f m
@@ -66,23 +65,20 @@ instance Monad m => MonadFail (RunMonad m) where
   fail = error
 
 registerToken :: Monad m => String -> AssetId -> RunMonad m ()
-registerToken s asset = tell [(s, asset)]
+registerToken s asset = tell $ symIndex s asset
 
-withLocalTokens :: Monad m => RunMonad m () -> RunMonad m (Map String AssetId)
-withLocalTokens m = do
-  tokens <- censor (const mempty) . fmap snd . listen $ m
-  when (length tokens /= length (nub $ map fst tokens)) $
-    fail $ "Duplicate call to registerToken: " ++ show tokens
-  pure $ Map.fromList tokens
+registerTxOut :: Monad m => String -> TxOut CtxUTxO Era -> RunMonad m ()
+registerTxOut s utxo = tell $ symIndex s utxo
+
+withLocalSymbolics :: Monad m => RunMonad m () -> RunMonad m SymIndex
+withLocalSymbolics m = censor (const mempty) . fmap snd . listen $ m
 
 instance MonadTrans RunMonad where
   lift = RunMonad . lift
 
 type instance StateModel.Realized (RunMonad m) a = StateModel.Realized m a
--- TODO: Because old version of qc-dynamic
-type instance StateModel.Realized (WriterT w m) a = StateModel.Realized m a
 
-type DefaultRealized m = ( StateModel.Realized m (Map String AssetId) ~ Map String AssetId
+type DefaultRealized m = ( StateModel.Realized m SymIndex ~ SymIndex
                          , StateModel.Realized m () ~ ()
                          )
 
@@ -102,12 +98,16 @@ instance (Monad m, HasChainIndex m) => HasChainIndex (RunMonad m) where
   getChainIndex = lift getChainIndex
   getChainState = lift getChainState
 
+instance (Monad m, HasChainIndex m) => HasChainIndex (StateModel.PostconditionM m) where
+  getChainIndex = lift getChainIndex
+  getChainState = lift getChainState
+
 instance IsRunnable m => IsRunnable (RunMonad m) where
   awaitSlot = lift . awaitSlot
 
 -- Takes a `SymToken` and turns it into an `AssetId`
-translateToken :: (StateModel.Var (Map String AssetId) -> Map String AssetId) -> SymToken -> AssetId
-translateToken lookup token = case Map.lookup (symVarIdx token) (lookup $ symVar token) of
+translateToken :: (StateModel.Var SymIndex -> SymIndex) -> SymToken -> AssetId
+translateToken lookup token = case lookupSymbolic (lookup $ symVar token) token of
   Just assetId -> assetId
   Nothing      -> error $ "The impossible happend: uncaught missing registerToken call for token: " ++ show token
 
@@ -115,43 +115,31 @@ instance ( IsRunnable m
          , RunModel state m
          ) => StateModel.RunModel (ModelState state) (RunMonad m) where
   perform st (ContractAction _ a) lookup = do
-      -- Run locally and get the registered tokens out
-      withLocalTokens $ perform st a (translateToken lookup)
+      -- Run locally and get the registered symbolics out
+      withLocalSymbolics $ perform st a (translateToken lookup)
   perform _ (WaitUntil slot) _ = awaitSlot slot
   perform _ Observation{} _ = pure ()
 
-  postcondition (st, _) (ContractAction _ act) _ tokens = do
-    -- Ask the model what tokens we expected to be registered in this run.
+  postcondition (st, _) (ContractAction _ act) _ symIndex = do
+    -- Ask the model what symbolics we expected to be registered in this run.
     -- NOTE: using `StateModel.Var 0` here is safe because we know that `StateModel` never uses `0` and we
     -- therefore get something unique. Likewise, we know that `nextState` can't observe the
     -- variables we use so it won't know the difference between having the real sym token
     -- it will get when we run `stateAfter` and this fake one.
-    let expectedTokens = map symVarIdx $ tokensCreatedBy (nextState act) (StateModel.mkVar 0) st
-    -- If we the `createToken` and `registerToken` tokens don't correspond we have an issue!
-    pure $ sort (Map.keys tokens) == sort expectedTokens
+    let expectedSymbolics = symbolicsCreatedBy (nextState act) (StateModel.mkVar 0) st
+    StateModel.counterexamplePost "Expected symbolics do not match registered symbolics"
+    pure $ toCreationIndex symIndex == expectedSymbolics
   postcondition _ (Observation _ p) lookup _ = do
     cst <- getChainState
     pure $ p (translateToken lookup) cst
   -- TODO: maybe add that current slot should equal the awaited slot?
   postcondition _ _ _ _ = pure True
 
-  -- TODO: a bit of code smell here because we don't have a nice solution to the
-  -- counterexample in postcondition issue
-  monitoring (s0, s1) (ContractAction _ act) env tokens =
-      tokenCounterexample
-    . monitoring @_ @m (s0, s1) act lookup tokens
-    where lookup token = case Map.lookup (symVarIdx token) (env (symVar token)) of
+  monitoring (s0, s1) (ContractAction _ act) env symIndex =
+    monitoring @_ @m (s0, s1) act lookup symIndex
+    where lookup token = case lookupSymbolic (env $ symVar token) token  of
                             Nothing  -> error $ "Unbound token: " ++ show token
                             Just aid -> aid
-          expectedTokens = map symVarIdx $ tokensCreatedBy (nextState act) (StateModel.mkVar 0) s0
-          tokenCounterexample
-           | sort (Map.keys tokens) /= sort expectedTokens =
-              counterexample ("Expected tokens: [" ++
-                              intercalate "," expectedTokens ++
-                              "] got [" ++
-                              intercalate "," (Map.keys tokens) ++
-                              "]")
-           | otherwise = id
   monitoring (s0, _) (WaitUntil n@(SlotNo _n)) _ _ =
     tabulate "Wait interval" (bucket 10 diff) .
     tabulate "Wait until" (bucket 10 _n)
@@ -174,9 +162,9 @@ runContractModel as = do
                                -- Note, this is safe because we know what actions there
                                -- are at the StateModel level - only waits and underlying
                                -- actions that return new symtokens.
-                               , symbolicTokens = Map.fromList $ [ (SymToken v s, ai)
+                               , symbolicTokens = Map.fromList $ [ (Symbolic v s, ai)
                                                                  | v StateModel.:=? m <- env
-                                                                 , (s, ai) <- Map.toList m
+                                                                 , (s, ai) <- Map.toList $ m ^. tokens
                                                                  ]
                                , finalChainIndex = ci
                                }

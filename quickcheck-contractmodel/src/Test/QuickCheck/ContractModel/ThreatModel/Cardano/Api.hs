@@ -180,7 +180,7 @@ projectAda = lovelaceToValue . selectLovelace
 data ValidityReport = ValidityReport
   { valid  :: Bool
   , errors :: [String]
-  } deriving (Ord, Eq, Show)
+  } deriving stock (Ord, Eq, Show)
 
 -- NOTE: this function ignores the execution units associated with
 -- the scripts in the Tx. That way we don't have to care about computing

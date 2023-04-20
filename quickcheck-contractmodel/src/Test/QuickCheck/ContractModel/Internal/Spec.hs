@@ -6,8 +6,6 @@ import Control.Monad.Reader
 import Control.Monad.Writer as Writer
 import Test.QuickCheck.StateModel
 import Data.Map (Map)
-import Data.Set (Set)
-import Data.Set qualified as Set
 import Cardano.Api
 import Test.QuickCheck.ContractModel.Internal.Symbolics
 import Test.QuickCheck.ContractModel.Internal.Common
@@ -25,12 +23,12 @@ data ModelState state = ModelState
         { _currentSlot    :: SlotNo
         , _balanceChanges :: Map (AddressInEra Era) SymValue
         , _minted         :: SymValue
-        , _symTokens      :: Set SymToken
+        , _symbolics      :: SymCollectionIndex
         , _assertions     :: [(String, Bool)]
         , _assertionsOk   :: Bool
         , _contractState  :: state
         }
-  deriving (Show, Generic)
+  deriving stock (Show, Generic)
 
 instance Functor ModelState where
   fmap f m = m { _contractState = f (_contractState m) }
@@ -38,8 +36,8 @@ instance Functor ModelState where
 -- | The `Spec` monad is a state monad over the `ModelState` with reader and writer components to keep track
 --   of newly created symbolic tokens. It is used exclusively by the `nextState` function to model the effects
 --   of an action on the blockchain.
-newtype Spec state a = Spec { unSpec :: WriterT [SymToken] (ReaderT (Var (Map String AssetId)) (State (ModelState state))) a }
-    deriving (Functor, Applicative, Monad)
+newtype Spec state a = Spec { unSpec :: WriterT SymCreationIndex (ReaderT (Var SymIndex) (State (ModelState state))) a }
+    deriving newtype (Functor, Applicative, Monad)
 
 coerceSpec :: forall s s' a. Coercible s s' => Spec s a -> Spec s' a
 coerceSpec (Spec spec) = do
@@ -65,7 +63,7 @@ makeLensesFor [("_balanceChanges", "balanceChangesL")] 'ModelState
 makeLensesFor [("_minted",         "mintedL")]         'ModelState
 makeLensesFor [("_assertions", "assertions")]          'ModelState
 makeLensesFor [("_assertionsOk", "assertionsOk")]      'ModelState
-makeLensesFor [("_symTokens", "symTokens")]            'ModelState
+makeLensesFor [("_symbolics", "symbolics")]            'ModelState
 
 -- | Get the current slot.
 --
@@ -139,26 +137,34 @@ instance GetModelState (Spec state) where
   getModelState = Spec State.get
 
 runSpec :: Spec state ()
-        -> Var (Map String AssetId)
+        -> Var SymIndex
         -> ModelState state
         -> ModelState state
 runSpec (Spec spec) v s = flip State.execState s $ do
-  w <- runReaderT (snd <$> Writer.runWriterT spec) v
-  symTokens %= (Set.fromList w <>)
+  ci <- runReaderT (snd <$> Writer.runWriterT spec) v
+  symbolics <>= makeSymCollection ci v
 
-tokensCreatedBy :: Spec state ()
-                  -> Var (Map String AssetId)
-                  -> ModelState state
-                  -> [SymToken]
-tokensCreatedBy (Spec spec) v s = flip State.evalState s $ runReaderT (snd <$> Writer.runWriterT spec) v
+symbolicsCreatedBy :: Spec state ()
+                   -> Var SymIndex
+                   -> ModelState state
+                   -> SymCreationIndex
+symbolicsCreatedBy (Spec spec) v s = flip State.evalState s $ runReaderT (snd <$> Writer.runWriterT spec) v
 
 -- | Create a new symbolic token in `nextState` - must have a
 -- corresponding `registerToken` call in `perform`
 createToken :: String -> Spec state SymToken
 createToken key = Spec $ do
   var <- ask
-  Writer.tell [SymToken var key]
-  pure $ SymToken var key
+  Writer.tell $ createIndex @AssetId key
+  pure $ Symbolic var key
+
+-- | Create a new symbolic token in `nextState` - must have a
+-- corresponding `registerToken` call in `perform`
+createSymUTxO :: String -> Spec state SymTxOut
+createSymUTxO key = Spec $ do
+  var <- ask
+  Writer.tell $ createIndex @(TxOut CtxUTxO Era) key
+  pure $ Symbolic var key
 
 -- | Mint tokens. Minted tokens start out as `lockedValue` (i.e. owned by the contract) and can be
 --   transferred to wallets using `deposit`.

@@ -104,9 +104,6 @@ newtype SymSet t = SymSet { unSymSet :: Set (Symbolic t) }
 
 deriving instance Show (Symbolic t) => Show (SymSet t)
 
-instance Functor SymSet where
-  fmap _ (SymSet set) = SymSet (Set.mapMonotonic (\ (Symbolic v s) -> Symbolic v s) set)
-
 symCollect :: HasSymbolicRep t
            => Symbolic t -> SymCollectionIndex
 symCollect s = mempty & symIndexL .~ (SymSet $ Set.singleton s)

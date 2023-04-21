@@ -113,7 +113,7 @@ instance ContractModel state => ActionLike state (Action state) where
 instance (ContractModel state, Typeable a) => ActionLike state (StateModel.Action (ModelState state) a) where
   action cmd = void $ DL.action cmd
 
-observe :: ContractModel state => String -> ((SymToken -> AssetId) -> ChainState -> Bool) -> DL state ()
+observe :: ContractModel state => String -> ((forall t. HasSymbolicRep t => Symbolic t -> t) -> ChainState -> Bool) -> DL state ()
 observe o p = action $ Observation o p
 
 waitUntilDL :: forall state. ContractModel state => SlotNo -> DL state ()

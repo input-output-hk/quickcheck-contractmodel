@@ -14,19 +14,22 @@ module Test.QuickCheck.ContractModel
   , liftRunMonad
   , contractState
   , registerToken
+  , registerTxOut
     -- * Chain index
   , HasChainIndex(..)
   , ChainIndex(..)
   , ChainState(..)
   , TxInState(..)
   , Era
-    -- * The safe interface to `SymToken`
+    -- * The safe interface to `Symbolic`
     --
     -- NOTE: we don't export the internals here because
     -- it's important that you can't tell the difference
     -- between differnelty numbered SymTokens as these are
     -- not guaranteed to be stable.
+  , Symbolic
   , SymToken
+  , SymTxOut
   , SymValue
   , symIsZero
   , symLeq
@@ -35,7 +38,8 @@ module Test.QuickCheck.ContractModel
   , inv
   , SymValueLike(..)
   , TokenLike(..)
-  , HasSymTokens(..)
+  , HasSymbolics(..)
+  , HasSymbolicRep
     -- * Properties
   , BalanceChangeOptions(..)
   , assertBalanceChangesMatch

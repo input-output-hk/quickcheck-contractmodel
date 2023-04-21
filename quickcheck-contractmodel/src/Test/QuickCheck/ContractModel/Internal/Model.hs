@@ -1,8 +1,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Test.QuickCheck.ContractModel.Internal.Model
-  ( HasSymTokens(..)
+  ( HasSymbolics(..)
   , BaseType(..)
-  , GenericHasSymTokens(..)
+  , GenericHasSymbolics(..)
   , ContractModel(..)
   , createsSymbolics
   , wait
@@ -45,56 +45,56 @@ import Cardano.Api
 
 type HasActions state = ( Eq (Action state)
                         , Show (Action state)
-                        , HasSymTokens (Action state)
+                        , HasSymbolics (Action state)
                         , StateModel.HasVariables state
                         , StateModel.HasVariables (Action state)
                         )
 
-class HasSymTokens a where
+class HasSymbolics a where
   getAllSymbolics :: a -> SymCollectionIndex
 
-  default getAllSymbolics :: (Generic a, GenericHasSymTokens (Rep a)) => a -> SymCollectionIndex
+  default getAllSymbolics :: (Generic a, GenericHasSymbolics (Rep a)) => a -> SymCollectionIndex
   getAllSymbolics = genericGetAllSymbolics . Generic.from
 
 newtype BaseType a = BaseType a
 
-instance HasSymbolicRep t => HasSymTokens (Symbolic t) where
+instance HasSymbolicRep t => HasSymbolics (Symbolic t) where
   getAllSymbolics = symCollect
 
-instance HasSymTokens (BaseType a) where
+instance HasSymbolics (BaseType a) where
   getAllSymbolics _ = mempty
 
-deriving via BaseType Integer  instance HasSymTokens Integer
-deriving via BaseType Int      instance HasSymTokens Int
-deriving via BaseType Char     instance HasSymTokens Char
-deriving via BaseType Value    instance HasSymTokens Value
-deriving via BaseType Quantity instance HasSymTokens Quantity
+deriving via BaseType Integer  instance HasSymbolics Integer
+deriving via BaseType Int      instance HasSymbolics Int
+deriving via BaseType Char     instance HasSymbolics Char
+deriving via BaseType Value    instance HasSymbolics Value
+deriving via BaseType Quantity instance HasSymbolics Quantity
 
 deriving via StateModel.HasNoVariables (AddressInEra Era) instance StateModel.HasVariables (AddressInEra Era)
 deriving via StateModel.HasNoVariables Quantity instance StateModel.HasVariables Quantity
 deriving via StateModel.HasNoVariables Value instance StateModel.HasVariables Value
 
-instance (HasSymTokens k, HasSymTokens v) => HasSymTokens (Map k v) where
+instance (HasSymbolics k, HasSymbolics v) => HasSymbolics (Map k v) where
   getAllSymbolics = getAllSymbolics . Map.toList
 
-instance {-# OVERLAPPABLE #-} (Generic a, GenericHasSymTokens (Rep a)) => HasSymTokens a
+instance {-# OVERLAPPABLE #-} (Generic a, GenericHasSymbolics (Rep a)) => HasSymbolics a
 
-class GenericHasSymTokens f where
+class GenericHasSymbolics f where
   genericGetAllSymbolics :: f k -> SymCollectionIndex
 
-instance GenericHasSymTokens f => GenericHasSymTokens (M1 i c f) where
+instance GenericHasSymbolics f => GenericHasSymbolics (M1 i c f) where
   genericGetAllSymbolics = genericGetAllSymbolics . unM1
 
-instance HasSymTokens c => GenericHasSymTokens (K1 i c) where
+instance HasSymbolics c => GenericHasSymbolics (K1 i c) where
   genericGetAllSymbolics = getAllSymbolics . unK1
 
-instance GenericHasSymTokens U1 where
+instance GenericHasSymbolics U1 where
   genericGetAllSymbolics _ = mempty
 
-instance (GenericHasSymTokens f, GenericHasSymTokens g) => GenericHasSymTokens (f :*: g) where
+instance (GenericHasSymbolics f, GenericHasSymbolics g) => GenericHasSymbolics (f :*: g) where
   genericGetAllSymbolics (x :*: y) = genericGetAllSymbolics x <> genericGetAllSymbolics y
 
-instance (GenericHasSymTokens f, GenericHasSymTokens g) => GenericHasSymTokens (f :+: g) where
+instance (GenericHasSymbolics f, GenericHasSymbolics g) => GenericHasSymbolics (f :+: g) where
   genericGetAllSymbolics (L1 x) = genericGetAllSymbolics x
   genericGetAllSymbolics (R1 x) = genericGetAllSymbolics x
 
@@ -223,12 +223,12 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
                    -> Action state
                    -> StateModel.Action (ModelState state) SymIndex
     Observation :: String
-                -- Note: the `SymToken -> AssetId` argument is necessary because
+                -- Note: the `Symbolic t -> t` argument is necessary because
                 -- when the user calls `observe` in their DL property to issue one
-                -- of these actions they are at _generation time_ so can't do `SymToken`
+                -- of these actions they are at _generation time_ so can't do symbolic
                 -- resolution up-front, instead it has to happen in the `perform`
                 -- for the `Observation` action.
-                -> ((SymToken -> AssetId) -> ChainState -> Bool)
+                -> (SymbolicSemantics -> ChainState -> Bool)
                 -> StateModel.Action (ModelState state) ()
     WaitUntil :: SlotNo
               -> StateModel.Action (ModelState state) ()
@@ -294,7 +294,7 @@ pattern Actions as <- Actions_ _ (Smart _ as) where
 data Act s = Bind   {varOf :: StateModel.Var SymIndex, actionOf :: Action s}
            | NoBind {varOf :: StateModel.Var SymIndex, actionOf :: Action s}
            | ActWaitUntil (StateModel.Var ()) SlotNo
-           | ActObservation (StateModel.Var ()) String ((SymToken -> AssetId) -> ChainState -> Bool)
+           | ActObservation (StateModel.Var ()) String (SymbolicSemantics -> ChainState -> Bool)
 
 mapActions :: (Action s -> Action s') -> Actions s -> Actions s'
 mapActions f (Actions_ rej (Smart n as)) = Actions_ rej $ Smart n $ map mapAct as

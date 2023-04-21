@@ -106,17 +106,17 @@ instance IsRunnable m => IsRunnable (RunMonad m) where
   awaitSlot = lift . awaitSlot
 
 -- Takes a `SymToken` and turns it into an `AssetId`
-translateToken :: (StateModel.Var SymIndex -> SymIndex) -> SymToken -> AssetId
-translateToken lookup token = case lookupSymbolic (lookup $ symVar token) token of
-  Just assetId -> assetId
-  Nothing      -> error $ "The impossible happend: uncaught missing registerToken call for token: " ++ show token
+translateSymbolic :: (StateModel.Var SymIndex -> SymIndex) -> SymbolicSemantics
+translateSymbolic lookup token = case lookupSymbolic (lookup $ symVar token) token of
+  Just v  -> v
+  Nothing -> error "The impossible happend: uncaught missing register for symbolic"
 
 instance ( IsRunnable m
          , RunModel state m
          ) => StateModel.RunModel (ModelState state) (RunMonad m) where
   perform st (ContractAction _ a) lookup = do
       -- Run locally and get the registered symbolics out
-      withLocalSymbolics $ perform st a (translateToken lookup)
+      withLocalSymbolics $ perform st a (translateSymbolic lookup)
   perform _ (WaitUntil slot) _ = awaitSlot slot
   perform _ Observation{} _ = pure ()
 
@@ -127,11 +127,15 @@ instance ( IsRunnable m
     -- variables we use so it won't know the difference between having the real sym token
     -- it will get when we run `stateAfter` and this fake one.
     let expectedSymbolics = symbolicsCreatedBy (nextState act) (StateModel.mkVar 0) st
-    StateModel.counterexamplePost "Expected symbolics do not match registered symbolics"
-    pure $ toCreationIndex symIndex == expectedSymbolics
+        actualSymbolics   = toCreationIndex symIndex
+    StateModel.counterexamplePost $ unlines
+      [ "Expected symbolics do not match registered symbolics"
+      , "  Expected: " ++ show expectedSymbolics
+      , "  Actual:   " ++ show actualSymbolics ]
+    pure $ actualSymbolics == expectedSymbolics
   postcondition _ (Observation _ p) lookup _ = do
     cst <- getChainState
-    pure $ p (translateToken lookup) cst
+    pure $ p (translateSymbolic lookup) cst
   -- TODO: maybe add that current slot should equal the awaited slot?
   postcondition _ _ _ _ = pure True
 

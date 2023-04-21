@@ -14,6 +14,7 @@ import Data.Map qualified as Map
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Maybe
+import Data.Foldable
 import Data.Function
 import Barbies
 import Barbies.Constraints
@@ -34,12 +35,15 @@ deriving instance AllBF Eq f SymIndexF => Eq (SymIndexF f)
 
 class HasSymbolicRep t where
   symIndexL :: Lens' (SymIndexF f) (f t)
+  symPrefix :: String
 
 instance HasSymbolicRep (TxOut CtxUTxO Era) where
   symIndexL = utxos
+  symPrefix = "txOut"
 
 instance HasSymbolicRep AssetId where
   symIndexL = tokens
+  symPrefix = "tok"
 
 -- Semigroup and Monoids --------------------------------------------------
 
@@ -94,6 +98,12 @@ createIndex :: forall t. HasSymbolicRep t
             => String -> SymCreationIndex
 createIndex s = mempty & symIndexL @t .~ Const (Set.singleton s)
 
+showCreateIndex :: SymCreationIndex -> String
+showCreateIndex = show . Set.toList . fold . Container . bmapC @HasSymbolicRep addPrefix
+  where
+    addPrefix :: forall t. HasSymbolicRep t => Const (Set String) t -> Const (Set String) t
+    addPrefix (Const set) = Const $ Set.mapMonotonic ((symPrefix @t ++ ".") ++) set
+
 -- | What symbolic variables have been created in a given run of the
 -- `Spec` monad?
 type SymCollectionIndex = SymIndexF SymSet
@@ -122,6 +132,11 @@ data Symbolic t = Symbolic { symVar :: Var SymIndex
                            , symVarIdx :: String
                            } deriving stock (Eq, Ord)
 
+type SymbolicSemantics = forall t. HasSymbolicRep t => Symbolic t -> t
+
+instance HasSymbolicRep t => Show (Symbolic t) where
+  show (Symbolic v n) = symPrefix @t ++ "." ++ show v ++ "." ++ n
+
 getSymbolics :: forall t. HasSymbolicRep t
              => SymCreationIndex -> Var SymIndex -> Set (Symbolic t)
 getSymbolics idx v = makeSymCollection idx v ^. symIndexL @t . to unSymSet
@@ -135,14 +150,8 @@ lookupSymbolic idx s = idx ^. symIndexL . at (symVarIdx s)
 -- | A SymTxOut is a `TxOut CtxUTxO Era` that is only available at runtime
 type SymTxOut = Symbolic (TxOut CtxUTxO Era)
 
-instance Show SymTxOut where
-  show (Symbolic v n) = "txOut." ++ show v ++ "." ++ n
-
 -- | A symbolic token is a token that is only available at runtime
 type SymToken = Symbolic AssetId
-
-instance Show SymToken where
-  show (Symbolic v n) = "tok." ++ show v ++ "." ++ n
 
 -- Symbolic values --------------------------------------------------------
 

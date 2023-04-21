@@ -158,10 +158,10 @@ createToken key = Spec $ do
   Writer.tell $ createIndex @AssetId key
   pure $ Symbolic var key
 
--- | Create a new symbolic token in `nextState` - must have a
--- corresponding `registerToken` call in `perform`
-createSymUTxO :: String -> Spec state SymTxOut
-createSymUTxO key = Spec $ do
+-- | Create a new symbolic TxOut in `nextState` - must have a
+-- corresponding `registerTxOut` call in `perform`
+createTxOut :: String -> Spec state SymTxOut
+createTxOut key = Spec $ do
   var <- ask
   Writer.tell $ createIndex @(TxOut CtxUTxO Era) key
   pure $ Symbolic var key

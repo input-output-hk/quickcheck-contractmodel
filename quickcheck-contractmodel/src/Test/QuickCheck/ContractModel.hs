@@ -67,6 +67,7 @@ module Test.QuickCheck.ContractModel
   , viewModelState
   , viewContractState
   , createToken
+  , createTxOut
   , mint
   , burn
   , deposit

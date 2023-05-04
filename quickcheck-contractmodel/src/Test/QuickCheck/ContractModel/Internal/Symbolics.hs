@@ -3,7 +3,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module Test.QuickCheck.ContractModel.Internal.Symbolics where
 
-import Cardano.Api
+import Cardano.Api hiding (txIns)
 import Control.Lens
 
 import Test.QuickCheck.StateModel
@@ -26,6 +26,7 @@ import Text.PrettyPrint.HughesPJClass hiding ((<>))
 
 data SymIndexF f = SymIndex { _tokens :: f AssetId
                             , _utxos  :: f (TxOut CtxUTxO Era)
+                            , _txIns  :: f TxIn
                             } deriving stock Generic
                               deriving anyclass (ConstraintsB, FunctorB, ApplicativeB, TraversableB)
 makeLenses ''SymIndexF
@@ -37,13 +38,17 @@ class HasSymbolicRep t where
   symIndexL :: Lens' (SymIndexF f) (f t)
   symPrefix :: String
 
+instance HasSymbolicRep AssetId where
+  symIndexL = tokens
+  symPrefix = "tok"
+
 instance HasSymbolicRep (TxOut CtxUTxO Era) where
   symIndexL = utxos
   symPrefix = "txOut"
 
-instance HasSymbolicRep AssetId where
-  symIndexL = tokens
-  symPrefix = "tok"
+instance HasSymbolicRep TxIn where
+  symIndexL = txIns
+  symPrefix = "txIn"
 
 -- Semigroup and Monoids --------------------------------------------------
 
@@ -147,11 +152,14 @@ instance HasVariables (Symbolic t) where
 lookupSymbolic :: HasSymbolicRep t => SymIndex -> Symbolic t -> Maybe t
 lookupSymbolic idx s = idx ^. symIndexL . at (symVarIdx s)
 
+-- | A symbolic token is a token that is only available at runtime
+type SymToken = Symbolic AssetId
+
 -- | A SymTxOut is a `TxOut CtxUTxO Era` that is only available at runtime
 type SymTxOut = Symbolic (TxOut CtxUTxO Era)
 
--- | A symbolic token is a token that is only available at runtime
-type SymToken = Symbolic AssetId
+-- | A SymTxIn is a `TxIn` that is only available at runtime
+type SymTxIn = Symbolic TxIn
 
 -- Symbolic values --------------------------------------------------------
 

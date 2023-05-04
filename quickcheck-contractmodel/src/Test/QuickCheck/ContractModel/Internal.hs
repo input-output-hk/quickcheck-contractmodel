@@ -65,10 +65,13 @@ instance Monad m => MonadFail (RunMonad m) where
   fail = error
 
 registerToken :: Monad m => String -> AssetId -> RunMonad m ()
-registerToken s asset = tell $ symIndex s asset
+registerToken s = tell . symIndex s
 
 registerTxOut :: Monad m => String -> TxOut CtxUTxO Era -> RunMonad m ()
-registerTxOut s utxo = tell $ symIndex s utxo
+registerTxOut s = tell . symIndex s
+
+registerTxIn :: Monad m => String -> TxOut CtxUTxO Era -> RunMonad m ()
+registerTxIn s = tell . symIndex s
 
 withLocalSymbolics :: Monad m => RunMonad m () -> RunMonad m SymIndex
 withLocalSymbolics m = censor (const mempty) . fmap snd . listen $ m

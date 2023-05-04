@@ -150,21 +150,26 @@ symbolicsCreatedBy :: Spec state ()
                    -> SymCreationIndex
 symbolicsCreatedBy (Spec spec) v s = flip State.evalState s $ runReaderT (snd <$> Writer.runWriterT spec) v
 
+createSymbolic :: forall t state. HasSymbolicRep t => String -> Spec state (Symbolic t)
+createSymbolic key = Spec $ do
+  var <- ask
+  Writer.tell $ createIndex @t key
+  pure $ Symbolic var key
+
 -- | Create a new symbolic token in `nextState` - must have a
 -- corresponding `registerToken` call in `perform`
 createToken :: String -> Spec state SymToken
-createToken key = Spec $ do
-  var <- ask
-  Writer.tell $ createIndex @AssetId key
-  pure $ Symbolic var key
+createToken = createSymbolic
 
 -- | Create a new symbolic TxOut in `nextState` - must have a
 -- corresponding `registerTxOut` call in `perform`
 createTxOut :: String -> Spec state SymTxOut
-createTxOut key = Spec $ do
-  var <- ask
-  Writer.tell $ createIndex @(TxOut CtxUTxO Era) key
-  pure $ Symbolic var key
+createTxOut = createSymbolic
+
+-- | Create a new symbolic TxIn in `nextState` - must have a
+-- corresponding `registerTxIn` call in `perform`
+createTxIn :: String -> Spec state SymTxIn
+createTxIn = createSymbolic
 
 -- | Mint tokens. Minted tokens start out as `lockedValue` (i.e. owned by the contract) and can be
 --   transferred to wallets using `deposit`.

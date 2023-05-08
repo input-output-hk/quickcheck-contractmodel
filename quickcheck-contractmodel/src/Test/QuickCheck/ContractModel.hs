@@ -13,8 +13,10 @@ module Test.QuickCheck.ContractModel
   , runContractModel
   , liftRunMonad
   , contractState
+  , registerSymbolic
   , registerToken
   , registerTxOut
+  , registerTxIn
     -- * Chain index
   , HasChainIndex(..)
   , ChainIndex(..)
@@ -25,11 +27,12 @@ module Test.QuickCheck.ContractModel
     --
     -- NOTE: we don't export the internals here because
     -- it's important that you can't tell the difference
-    -- between differnelty numbered SymTokens as these are
-    -- not guaranteed to be stable.
+    -- between differently numbered Symbolics as these numbers
+    -- are not guaranteed to be stable.
   , Symbolic
   , SymToken
   , SymTxOut
+  , SymTxIn
   , SymValue
   , symIsZero
   , symLeq
@@ -66,8 +69,10 @@ module Test.QuickCheck.ContractModel
   , askContractState
   , viewModelState
   , viewContractState
+  , createSymbolic
   , createToken
   , createTxOut
+  , createTxIn
   , mint
   , burn
   , deposit

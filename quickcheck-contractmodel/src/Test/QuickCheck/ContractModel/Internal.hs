@@ -39,7 +39,7 @@ class (ContractModel state, IsRunnable m) => RunModel state m where
   -- a` instances from previous steps.
   perform :: ModelState state
           -> Action state
-          -> (SymToken -> AssetId)
+          -> (forall t. HasSymbolicRep t => Symbolic t -> t)
           -> RunMonad m ()
 
   -- | Allows the user to attach information to the `Property` at each step of the process.
@@ -48,7 +48,7 @@ class (ContractModel state, IsRunnable m) => RunModel state m where
   -- while executing this step.
   monitoring :: (ModelState state, ModelState state)
              -> Action state
-             -> (SymToken -> AssetId)
+             -> (forall t. HasSymbolicRep t => Symbolic t -> t)
              -> SymIndex
              -> Property
              -> Property
@@ -64,11 +64,20 @@ liftRunMonad f (RunMonad (WriterT m)) = RunMonad . WriterT $ f m
 instance Monad m => MonadFail (RunMonad m) where
   fail = error
 
+registerSymbolic :: (Monad m, HasSymbolicRep t)
+                 => String
+                 -> t
+                 -> RunMonad m ()
+registerSymbolic s = tell . symIndex s
+
 registerToken :: Monad m => String -> AssetId -> RunMonad m ()
-registerToken s asset = tell $ symIndex s asset
+registerToken = registerSymbolic
 
 registerTxOut :: Monad m => String -> TxOut CtxUTxO Era -> RunMonad m ()
-registerTxOut s utxo = tell $ symIndex s utxo
+registerTxOut = registerSymbolic
+
+registerTxIn :: Monad m => String -> TxIn -> RunMonad m ()
+registerTxIn = registerSymbolic
 
 withLocalSymbolics :: Monad m => RunMonad m () -> RunMonad m SymIndex
 withLocalSymbolics m = censor (const mempty) . fmap snd . listen $ m
@@ -141,9 +150,10 @@ instance ( IsRunnable m
 
   monitoring (s0, s1) (ContractAction _ act) env symIndex =
     monitoring @_ @m (s0, s1) act lookup symIndex
-    where lookup token = case lookupSymbolic (env $ symVar token) token  of
-                            Nothing  -> error $ "Unbound token: " ++ show token
-                            Just aid -> aid
+    where lookup :: HasSymbolicRep t => Symbolic t -> t
+          lookup sym = case lookupSymbolic (env $ symVar sym) sym of
+                            Nothing -> error $ "Unbound symbolic: " ++ show sym
+                            Just v  -> v
   monitoring (s0, _) (WaitUntil n@(SlotNo _n)) _ _ =
     tabulate "Wait interval" (bucket 10 diff) .
     tabulate "Wait until" (bucket 10 _n)

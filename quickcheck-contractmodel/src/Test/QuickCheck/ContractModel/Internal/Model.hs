@@ -335,24 +335,27 @@ instance ContractModel s => Arbitrary (Actions s) where
   arbitrary = fromStateModelActions <$> arbitrary
   shrink = map fromStateModelActions . shrink . toStateModelActions
 
+-- TODO: this has to care about polarity once we add negative testing to quickcheck-contractmodel!
 toStateModelActions :: ContractModel state =>
                         Actions state -> StateModel.Actions (ModelState state)
 toStateModelActions (Actions_ rs (Smart k s)) =
   StateModel.Actions_ rs (Smart k $ map mkStep s)
-    where mkStep (ActWaitUntil v n) = v StateModel.:= WaitUntil n
-          mkStep (ActObservation v n p) = v StateModel.:= Observation n p
-          mkStep act                = varOf act StateModel.:= ContractAction (isBind act) (actionOf act)
+    where mkStep (ActWaitUntil v n) = v StateModel.:= StateModel.ActionWithPolarity (WaitUntil n) StateModel.PosPolarity
+          mkStep (ActObservation v n p) = v StateModel.:= StateModel.ActionWithPolarity (Observation n p) StateModel.PosPolarity
+          mkStep act                = varOf act StateModel.:= StateModel.ActionWithPolarity (ContractAction (isBind act) (actionOf act)) StateModel.PosPolarity
 
+-- TODO: this has to care about polarity once we add negative testing to quickcheck-contractmodel!
 fromStateModelActions :: StateModel.Actions (ModelState s) -> Actions s
 fromStateModelActions (StateModel.Actions_ rs (Smart k s)) =
   Actions_ rs (Smart k (catMaybes $ map mkAct s))
   where
     mkAct :: StateModel.Step (ModelState s) -> Maybe (Act s)
-    mkAct (v StateModel.:= ContractAction b act)
+    mkAct (v StateModel.:= (StateModel.polarAction -> ContractAction b act))
           | b         = Just $ Bind   v act
           | otherwise = Just $ NoBind v act
-    mkAct (v StateModel.:= WaitUntil n) = Just $ ActWaitUntil v n
-    mkAct (v StateModel.:= Observation n p) = Just $ ActObservation v n p
+    mkAct (v StateModel.:= (StateModel.polarAction -> WaitUntil n)) = Just $ ActWaitUntil v n
+    mkAct (v StateModel.:= (StateModel.polarAction -> Observation n p)) = Just $ ActObservation v n p
+    mkAct _ = error "Unreachable" -- NOTE: this is only here to trick GHC!
 
 dummyModelState :: state -> ModelState state
 dummyModelState s = ModelState 1 Map.empty mempty mempty mempty True s

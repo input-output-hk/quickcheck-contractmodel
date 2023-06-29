@@ -87,7 +87,7 @@ library
     -- QuickCheck dependencies
     build-depends:
       QuickCheck ^>= 2.14,
-      quickcheck-dynamic ^>= 3.1.0,
+      quickcheck-dynamic ^>= 3.2.0,
       quickcheck-threatmodel
     -- Plutus and Cardano dependencies
     build-depends:

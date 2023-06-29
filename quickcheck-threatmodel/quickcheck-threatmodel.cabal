@@ -1,6 +1,6 @@
 cabal-version:      2.4
-name:               quickcheck-contractmodel
-version:            0.1.4.1
+name:               quickcheck-threatmodel
+version:            1.0.0
 
 -- A short (one-line) description of the package.
 -- synopsis:
@@ -63,16 +63,11 @@ library
     import: lang
     hs-source-dirs: src
     exposed-modules:
-      Test.QuickCheck.ContractModel
-      Test.QuickCheck.ContractModel.DL
-      Test.QuickCheck.ContractModel.Internal
-      Test.QuickCheck.ContractModel.Internal.Model
-      Test.QuickCheck.ContractModel.Internal.Common
-      Test.QuickCheck.ContractModel.Internal.ChainIndex
-      Test.QuickCheck.ContractModel.Internal.Spec
-      Test.QuickCheck.ContractModel.Internal.Symbolics
-      Test.QuickCheck.ContractModel.Internal.Utils
-      Test.QuickCheck.ContractModel.ThreatModel
+      Test.QuickCheck.ThreatModel
+      Test.QuickCheck.ThreatModel.Cardano.Api
+      Test.QuickCheck.ThreatModel.DoubleSatisfaction
+      Test.QuickCheck.ThreatModel.Pretty
+      Test.QuickCheck.ThreatModel.TxModifier
     -- General dependencies
     build-depends:
       base >=4.7 && <5,
@@ -88,7 +83,6 @@ library
     build-depends:
       QuickCheck ^>= 2.14,
       quickcheck-dynamic ^>= 3.1.0,
-      quickcheck-threatmodel
     -- Plutus and Cardano dependencies
     build-depends:
       plutus-tx ^>= 1.0,

@@ -17,6 +17,7 @@ index-state:
 
 packages:
   quickcheck-contractmodel
+  quickcheck-threatmodel
 
 -- cardano-addresses unit tests bring in some version constraint conflicts:
 --

@@ -1,5 +1,5 @@
 
-module Test.QuickCheck.ContractModel.ThreatModel.DoubleSatisfaction
+module Test.QuickCheck.ThreatModel.DoubleSatisfaction
   ( doubleSatisfaction
   ) where
 
@@ -7,7 +7,7 @@ import Cardano.Api
 
 import PlutusTx.Prelude (BuiltinByteString)
 
-import Test.QuickCheck.ContractModel.ThreatModel
+import Test.QuickCheck.ThreatModel
 
 safeScript :: SimpleScript SimpleScriptV2
 safeScript = RequireAllOf [] -- TODO: this is not the right script!

@@ -1,5 +1,5 @@
 
-module Test.QuickCheck.ContractModel.ThreatModel.Cardano.Api where
+module Test.QuickCheck.ThreatModel.Cardano.Api where
 
 import Cardano.Api
 import Cardano.Api.Byron
@@ -27,7 +27,8 @@ import Data.Sequence.Strict qualified as Seq
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Data.Word
 
-import Test.QuickCheck.ContractModel.Internal.Common
+type Era = BabbageEra
+type LedgerEra = ShelleyLedgerEra Era
 
 addressOfTxOut :: TxOut ctx Era -> AddressAny
 addressOfTxOut (TxOut (AddressInEra ShelleyAddressInEra{}  addr) _ _ _) = AddressShelley addr

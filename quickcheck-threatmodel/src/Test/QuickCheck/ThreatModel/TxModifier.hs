@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-module Test.QuickCheck.ContractModel.ThreatModel.TxModifier where
+module Test.QuickCheck.ThreatModel.TxModifier where
 
 import Cardano.Api
 import Cardano.Api.Shelley
@@ -16,8 +16,7 @@ import Data.Maybe.Strict
 import Data.Sequence.Strict qualified as Seq
 import Data.Set qualified as Set
 
-import Test.QuickCheck.ContractModel.Internal.Common
-import Test.QuickCheck.ContractModel.ThreatModel.Cardano.Api
+import Test.QuickCheck.ThreatModel.Cardano.Api
 
 -- | A transaction output paired with its index in the transaction.
 data Output = Output { outputTxOut :: TxOut CtxTx Era

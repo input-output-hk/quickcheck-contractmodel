@@ -1,5 +1,5 @@
 
-module Test.QuickCheck.ContractModel.ThreatModel.Pretty where
+module Test.QuickCheck.ThreatModel.Pretty where
 
 import Cardano.Api
 import Cardano.Api.Byron
@@ -14,13 +14,11 @@ import Data.Char
 import Data.List (nub, sort)
 import Data.Map qualified as Map
 
-import Test.QuickCheck.ContractModel.Internal.Common
-
 import Text.PrettyPrint.HughesPJClass hiding ((<>))
 import Text.Printf
 
-import Test.QuickCheck.ContractModel.ThreatModel.TxModifier
-import Test.QuickCheck.ContractModel.ThreatModel.Cardano.Api
+import Test.QuickCheck.ThreatModel.TxModifier
+import Test.QuickCheck.ThreatModel.Cardano.Api
 
 -- | Format a list of strings as a paragraph. The structure of the list is not considered other than
 --   inserting whitespace between consecutive elements. Use with

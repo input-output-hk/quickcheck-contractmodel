@@ -1,2 +1,4 @@
 .*.sw*
 dist-newstyle
+.pre-commit-config.yaml
+result 

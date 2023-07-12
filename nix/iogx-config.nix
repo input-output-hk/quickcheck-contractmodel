@@ -3,6 +3,6 @@
 
 {
   systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" ];
-  haskellCompilers = [ "ghc8107" ];
+  haskellCompilers = [ "ghc927" ];
   shouldCrossCompile = false;
 }

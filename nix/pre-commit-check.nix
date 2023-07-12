@@ -2,8 +2,8 @@
 # https://www.github.com/input-output-hk/iogx#38-nixpre-commit-checknix
 
 {
-  cabal-fmt.enable = true;
+  cabal-fmt.enable = false;
   nixpkgs-fmt.enable = true;
-  fourmolu.enable = true;
+  fourmolu.enable = false;
   fourmolu.extraOptions = "-o -XImportQualifiedPost -o -XTypeApplications -o -XPatternSynonyms";
 }

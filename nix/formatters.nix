@@ -2,8 +2,8 @@
 # https://www.github.com/input-output-hk/iogx#38-nixformattersnix
 
 {
-  cabal-fmt.enable = false;
   nixpkgs-fmt.enable = true;
+  cabal-fmt.enable = false;
   fourmolu.enable = false;
   fourmolu.extraOptions = "-o -XImportQualifiedPost -o -XTypeApplications -o -XPatternSynonyms";
 }

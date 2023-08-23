@@ -1,37 +1,32 @@
+# This file is part of the IOGX template and is documented at the link below:
+# https://www.github.com/input-output-hk/iogx#31-flakenix
+
 {
-  description = "quickcheck-contractmodel";
+  description = "Interface to quickcheck-dynamic for Developers of Plutus Scripts";
+
 
   inputs = {
-    devx.url = "github:input-output-hk/devx"; 
-    nixpkgs.follows = "devx/nixpkgs";
-    std = {
-      url = "github:divnix/std";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    iogx.url = "github:input-output-hk/iogx";
   };
 
-  outputs = inputs:
-    inputs.std.growOn {
-      inherit inputs;
-      cellsFrom = ./nix;
-      cellBlocks = [
-        (inputs.std.devshells "devshells")
-      ];
-    }
-    {
-      devShells = inputs.std.harvest inputs.self [ "contractmodel" "devshells" ];
-    };
- 
+
+  outputs = inputs: inputs.iogx.lib.mkFlake {
+    inherit inputs;
+    repoRoot = ./.;
+    systems = [ "x86_64-linux" "x86_64-darwin" "aarch64-darwin" ];
+  };
+
+
   nixConfig = {
-    extra-substituters = [ 
-      "https://cache.iog.io" 
-      "https://hydra.iohk.io" 
-      "https://cache.zw3rk.com"
+
+    extra-substituters = [
+      "https://cache.iog.io"
     ];
-    extra-trusted-public-keys = [ 
-      "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=" 
-      "loony-tools:pr9m4BkM/5/eSTZlkQyRt57Jz7OMBxNSUiMC4FkcNfk="
+
+    extra-trusted-public-keys = [
+      "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ="
     ];
+
     allow-import-from-derivation = true;
   };
 }

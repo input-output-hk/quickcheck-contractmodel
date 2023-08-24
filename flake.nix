@@ -7,6 +7,12 @@
 
   inputs = {
     iogx.url = "github:input-output-hk/iogx";
+    iogx.inputs.hackage.follows = "hackage";
+
+    hackage = {
+      url = "github:input-output-hk/hackage.nix";
+      flake = false;
+    };
   };
 
 

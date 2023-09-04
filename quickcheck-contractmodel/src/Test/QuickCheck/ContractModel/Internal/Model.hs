@@ -158,6 +158,18 @@ class ( Typeable state
     --   state monad over the `ModelState`.
     nextState :: Action state -> Spec state ()
 
+    -- | Transition function for negative actions. Note that most negative testing applications
+    -- should not require an implementation of this function!
+    failureNextState :: Action state -> Spec state ()
+    failureNextState _ = pure ()
+
+    -- | Precondition for filtering an `Action` that can meaningfully run but is supposed to fail.
+    -- An action will run as a _negative_ action if the `precondition` fails and `validFailingAction` succeeds.
+    -- A negative action should have _no effect_ on the model state. This may not be desierable in all
+    -- situations - in which case one can override this semantics for book-keeping in `failureNextState`.
+    validFailingAction :: ModelState state -> Action state -> Bool
+    validFailingAction _ _ = False
+
     -- | When a test involving random sequences of actions fails, the framework tries to find a
     --   minimal failing test case by shrinking the original failure. Action sequences are shrunk by
     --   removing individual actions, or by replacing an action by one of the (simpler) actions
@@ -195,31 +207,35 @@ waitUntil n = do
     wait (fromIntegral n')
 
 instance ContractModel state => Show (StateModel.Action (ModelState state) a) where
-    showsPrec p (ContractAction _ a) = showsPrec p a
-    showsPrec p (WaitUntil n)        = showParen (p >= 11) $ showString "WaitUntil " . showsPrec 11 n
-    showsPrec _ o@Observation{}      = showString $ StateModel.actionName o
+    showsPrec p (ContractAction _ _ a) = showsPrec p a
+    showsPrec p (WaitUntil n)          = showParen (p >= 11) $ showString "WaitUntil " . showsPrec 11 n
+    showsPrec _ o@Observation{}        = showString $ StateModel.actionName o
 
 instance ContractModel state => Eq (StateModel.Action (ModelState state) a) where
-  ContractAction b a == ContractAction b' a' = (b, a) == (b', a')
-  WaitUntil s == WaitUntil s'                = s == s'
-  Observation o _ == Observation o' _        = o == o'
-  _ == _                                     = False
+  ContractAction p b a == ContractAction p' b' a' = (p, b, a) == (p', b', a')
+  WaitUntil s == WaitUntil s'                    = s == s'
+  Observation o _ == Observation o' _            = o == o'
+  _ == _                                         = False
 
 contractAction :: ContractModel state
                => ModelState state
                -> Action state
                -> StateModel.Action (ModelState state) SymIndex
-contractAction s a = ContractAction (createsSymbolics s a) a
+contractAction s a = ContractAction pol (createsSymbolics s a) a
+  where pol | precondition s a = StateModel.PosPolarity
+            | validFailingAction s a = StateModel.NegPolarity
+            | otherwise = StateModel.PosPolarity
 
 instance StateModel.HasVariables (Action state) =>
           StateModel.HasVariables (StateModel.Action (ModelState state) a) where
-  getAllVariables (ContractAction _ a) = StateModel.getAllVariables a
-  getAllVariables WaitUntil{}          = mempty
-  getAllVariables Observation{}        = mempty
+  getAllVariables (ContractAction _ _ a) = StateModel.getAllVariables a
+  getAllVariables WaitUntil{}            = mempty
+  getAllVariables Observation{}          = mempty
 
 instance ContractModel state => StateModel.StateModel (ModelState state) where
   data Action (ModelState state) a where
-    ContractAction :: Bool
+    ContractAction :: StateModel.Polarity
+                   -> Bool
                    -> Action state
                    -> StateModel.Action (ModelState state) SymIndex
     Observation :: String
@@ -233,21 +249,21 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
     WaitUntil :: SlotNo
               -> StateModel.Action (ModelState state) ()
 
-  actionName (ContractAction _ act) = actionName act
+  actionName (ContractAction _ _ act) = actionName act
   actionName WaitUntil{}            = "WaitUntil"
   actionName (Observation n _)      = "Observation[" ++ n ++ "]"
 
   arbitraryAction _ s =
     frequency [( floor $ 100.0*(1.0-waitProbability s)
                , do a <- arbitraryAction s
-                    return (StateModel.Some (ContractAction (createsSymbolics s a) a)))
+                    return (StateModel.Some $ contractAction s a))
               ,( floor $ 100.0*waitProbability s
                , StateModel.Some . WaitUntil . step <$> arbitraryWaitInterval s)]
         where
             slot = s ^. currentSlot
             step n = slot + n
 
-  shrinkAction _ s (ContractAction _ a) =
+  shrinkAction _ s (ContractAction _ _ a) =
     [ StateModel.Some (WaitUntil (SlotNo n'))
     | let SlotNo n = runSpec (nextState a) (StateModel.mkVar 0) s ^. currentSlot
     , n' <- n : shrink n
@@ -269,19 +285,28 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
                             , _contractState    = initialState
                             }
 
-  nextState s (ContractAction _ cmd) v = runSpec (nextState cmd) v s
-  nextState s (WaitUntil n) _          = runSpec (() <$ waitUntil n) (error "unreachable") s
-  nextState s (Observation _ _) _      = s
+  nextState s (ContractAction _ _ cmd) v = runSpec (nextState cmd) v s
+  nextState s (WaitUntil n) _            = runSpec (() <$ waitUntil n) (error "unreachable") s
+  nextState s (Observation _ _) _        = s
+
+  -- TODO: probably wise to avoid binding tokens here
+  failureNextState s (ContractAction _ _ cmd) = runSpec (failureNextState cmd) StateModel.failureResult s
+  failureNextState _ _ = error "The impossible happened in failureNextState"
 
   -- Note that the order of the preconditions in this case matter - we want to run
   -- `getAllSymbolics` last because its likely to be stricter than the user precondition
   -- and so if the user relies on the lazyness of the Gen monad by using the precondition
   -- to avoid duplicate checks in the precondition and generator we don't screw that up.
-  precondition s (ContractAction _ cmd) = s ^. assertionsOk
-                                        && precondition s cmd
-                                        && getAllSymbolics cmd `symCollectionSubset` (s ^. symbolics)
-  precondition s (WaitUntil n)          = n > s ^. currentSlot
-  precondition _ Observation{}          = True
+  precondition s (ContractAction StateModel.PosPolarity _ cmd) = s ^. assertionsOk
+                                          && precondition s cmd
+                                          && getAllSymbolics cmd `symCollectionSubset` (s ^. symbolics)
+  precondition s (WaitUntil n)            = n > s ^. currentSlot
+  precondition _ Observation{}            = True
+  precondition _ _ = False
+
+  validFailingAction s (ContractAction StateModel.NegPolarity _ cmd) =
+    s ^. assertionsOk && validFailingAction s cmd && getAllSymbolics cmd `symCollectionSubset` (s ^. symbolics)
+  validFailingAction _ _ = False
 
 -- We include a list of rejected action names.
 data Actions s = Actions_ [String] (Smart [Act s])
@@ -291,22 +316,23 @@ pattern Actions :: [Act s] -> Actions s
 pattern Actions as <- Actions_ _ (Smart _ as) where
   Actions as = Actions_ [] (Smart 0 as)
 
-data Act s = Bind   {varOf :: StateModel.Var SymIndex, actionOf :: Action s}
-           | NoBind {varOf :: StateModel.Var SymIndex, actionOf :: Action s}
+data Act s = Bind   {polarityOf :: StateModel.Polarity, varOf :: StateModel.Var SymIndex, actionOf :: Action s}
+           | NoBind {polarityOf :: StateModel.Polarity, varOf :: StateModel.Var SymIndex, actionOf :: Action s}
            | ActWaitUntil (StateModel.Var ()) SlotNo
            | ActObservation (StateModel.Var ()) String (SymbolicSemantics -> ChainState -> Bool)
 
 mapActions :: (Action s -> Action s') -> Actions s -> Actions s'
 mapActions f (Actions_ rej (Smart n as)) = Actions_ rej $ Smart n $ map mapAct as
   where
-    mapAct (Bind x a)             = Bind x (f a)
-    mapAct (NoBind x a)           = NoBind x (f a)
+    -- I'm just going to assume this is safe... It's not generally safe to assume the polarity doesn't change here...
+    mapAct (Bind p x a)             = Bind p x (f a)
+    mapAct (NoBind p x a)           = NoBind p x (f a)
     mapAct (ActWaitUntil x n)     = ActWaitUntil x n
     mapAct (ActObservation x n p) = ActObservation x n p
 
 instance ContractModel s => Eq (Act s) where
-  Bind v a             == Bind v' a'             = (v, a) == (v', a')
-  NoBind v a           == NoBind v' a'           = (v, a) == (v', a')
+  Bind p v a           == Bind p' v' a'          = (p, v, a) == (p', v', a')
+  NoBind p v a         == NoBind p' v' a'        = (p, v, a) == (p', v', a')
   ActWaitUntil v s     == ActWaitUntil v' s'     = (v, s) == (v', s')
   ActObservation v n _ == ActObservation v' n' _ = (v, n) == (v', n')
   _                    == _                      = False
@@ -316,11 +342,11 @@ isBind Bind{} = True
 isBind _      = False
 
 instance ContractModel state => Show (Act state) where
-  showsPrec d (Bind v a) =
+  showsPrec d (Bind _ v a) =
     showParen (d >= 11) $ showString ("tok." ++ show v ++ " := ") . showsPrec 0 a
   showsPrec d (ActWaitUntil _ n) = showsPrec d (WaitUntil @state n)
   showsPrec d (ActObservation _ n p) = showsPrec d (Observation @state n p)
-  showsPrec d (NoBind _ a) =
+  showsPrec d (NoBind _ _ a) =
     showsPrec d a
 
 instance ContractModel state => Show (Actions state) where
@@ -342,7 +368,7 @@ toStateModelActions (Actions_ rs (Smart k s)) =
   StateModel.Actions_ rs (Smart k $ map mkStep s)
     where mkStep (ActWaitUntil v n) = v StateModel.:= StateModel.ActionWithPolarity (WaitUntil n) StateModel.PosPolarity
           mkStep (ActObservation v n p) = v StateModel.:= StateModel.ActionWithPolarity (Observation n p) StateModel.PosPolarity
-          mkStep act                = varOf act StateModel.:= StateModel.ActionWithPolarity (ContractAction (isBind act) (actionOf act)) StateModel.PosPolarity
+          mkStep act                = varOf act StateModel.:= StateModel.ActionWithPolarity (ContractAction (polarityOf act) (isBind act) (actionOf act)) StateModel.PosPolarity
 
 -- TODO: this has to care about polarity once we add negative testing to quickcheck-contractmodel!
 fromStateModelActions :: StateModel.Actions (ModelState s) -> Actions s
@@ -350,9 +376,9 @@ fromStateModelActions (StateModel.Actions_ rs (Smart k s)) =
   Actions_ rs (Smart k (catMaybes $ map mkAct s))
   where
     mkAct :: StateModel.Step (ModelState s) -> Maybe (Act s)
-    mkAct (v StateModel.:= (StateModel.polarAction -> ContractAction b act))
-          | b         = Just $ Bind   v act
-          | otherwise = Just $ NoBind v act
+    mkAct (v StateModel.:= (StateModel.polarAction -> ContractAction p b act))
+          | b         = Just $ Bind p v act
+          | otherwise = Just $ NoBind p v act
     mkAct (v StateModel.:= (StateModel.polarAction -> WaitUntil n)) = Just $ ActWaitUntil v n
     mkAct (v StateModel.:= (StateModel.polarAction -> Observation n p)) = Just $ ActObservation v n p
     mkAct _ = error "Unreachable" -- NOTE: this is only here to trick GHC!

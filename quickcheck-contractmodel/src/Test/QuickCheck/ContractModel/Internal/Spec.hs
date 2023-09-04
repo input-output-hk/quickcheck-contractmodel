@@ -12,6 +12,7 @@ import Test.QuickCheck.ContractModel.Internal.Common
 import Control.Lens
 import Data.Foldable
 import Data.Coerce
+import Data.Kind (Type)
 
 -- | The `ModelState` models the state of the blockchain. It contains,
 --
@@ -107,7 +108,7 @@ modState l f = Spec $ State.modify $ over l f
 class Monad m => GetModelState m where
     -- | The contract state type of the monad. For both `Spec` and `DL` this is simply the @state@
     --   parameter of the respective monad.
-    type StateType m :: *
+    type StateType m :: Type
 
     -- | Get the current model state.
     getModelState :: m (ModelState (StateType m))

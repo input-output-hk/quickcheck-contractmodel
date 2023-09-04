@@ -44,13 +44,13 @@ class HasChainIndex m where
   getChainState :: m ChainState
 
 allMinAda :: ChainIndex
-          -> ProtocolParameters
+          -> BundledProtocolParameters Era
           -> [Lovelace]
 allMinAda ci params =
-  [ selectLovelace v
+  [ l
   | TxInState{..} <- transactions ci
   , txOut <- getTxOuts tx
-  , Right v <- [calculateMinimumUTxO era txOut params]
+  , l <- [calculateMinimumUTxO era txOut params]
   , accepted
   ]
 

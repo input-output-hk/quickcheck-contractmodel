@@ -142,11 +142,16 @@ instance ( IsRunnable m
       , "  Expected: " ++ show expectedSymbolics
       , "  Actual:   " ++ show actualSymbolics ]
     pure $ actualSymbolics == expectedSymbolics
+  -- Negative actions shouldn't run with this postcondition. If they do that's a bug
+  postcondition _ (ContractAction StateModel.NegPolarity _ _) _ _ = error "The impossible happened in postcondition"
   postcondition _ (Observation _ p) lookup _ = do
     cst <- getChainState
     pure $ p (translateSymbolic lookup) cst
   -- TODO: maybe add that current slot should equal the awaited slot?
   postcondition _ _ _ _ = pure True
+
+  -- TODO: it could be worth-while implementing the negative postcondition here to check that we're not
+  -- accidentally binding any symbolic things in `failureNextState`
 
   monitoring (s0, s1) (ContractAction _ _ act) env symIndex =
     monitoring @_ @m (s0, s1) act lookup symIndex

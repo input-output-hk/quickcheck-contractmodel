@@ -18,17 +18,3 @@ index-state:
 packages:
   quickcheck-contractmodel
   quickcheck-threatmodel
-
--- cardano-addresses unit tests bring in some version constraint conflicts:
---
--- * it has strict aeson < 1.5 dep - this will be fixed in the next release.
-allow-newer:
-  ekg:aeson,
-  ekg-json:aeson,
-  threepenny-gui:aeson,
-  monoidal-containers:aeson,
---   size-based:template-haskell,
---   snap-server:attoparsec,
-
-constraints:
-  aeson ^>= 2.1

@@ -9,7 +9,7 @@ import PlutusTx.Prelude (BuiltinByteString)
 
 import Test.QuickCheck.ThreatModel
 
-safeScript :: SimpleScript SimpleScriptV2
+safeScript :: SimpleScript
 safeScript = RequireAllOf [] -- TODO: this is not the right script!
 
 -- | Check for double satisfaction vulnerabilities.

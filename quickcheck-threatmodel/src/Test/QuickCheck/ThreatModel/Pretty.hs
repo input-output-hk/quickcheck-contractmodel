@@ -5,7 +5,7 @@ import Cardano.Api
 import Cardano.Api.Byron
 import Cardano.Api.Shelley
 import Cardano.Ledger.Alonzo.Tx qualified as Ledger (Data)
-import Cardano.Ledger.Alonzo.TxWitness qualified as Ledger
+import Cardano.Ledger.Alonzo.TxWits qualified as Ledger
 import Cardano.Ledger.SafeHash qualified as Ledger
 
 import Cardano.Ledger.Alonzo.Scripts qualified as Ledger
@@ -118,8 +118,8 @@ prettyHash = text . take 7 . drop 1 . show
 prettyDatum :: Datum -> Doc
 prettyDatum TxOutDatumNone         = empty
 prettyDatum (TxOutDatumHash _ h)   = "Datum#" <> prettyHash h
-prettyDatum (TxOutDatumInline _ d) = prettyScriptData d
-prettyDatum (TxOutDatumInTx _ d)   = prettyScriptData d
+prettyDatum (TxOutDatumInline _ d) = prettyScriptData $ getScriptData d
+prettyDatum (TxOutDatumInTx _ d)   = prettyScriptData $ getScriptData d
 
 prettyTx :: Tx Era -> Doc
 prettyTx tx@(Tx body@(TxBody (TxBodyContent{..})) _) =
@@ -143,7 +143,7 @@ prettyTx tx@(Tx body@(TxBody (TxBodyContent{..})) _) =
               TxBodyNoScriptData                            -> mempty
 
 prettyRedeemer :: [TxIn] -> [PolicyId] -> Ledger.RdmrPtr -> (Ledger.Data era, Ledger.ExUnits) -> Doc
-prettyRedeemer inps mints (Ledger.RdmrPtr tag ix) (dat, _) = pTag <:> prettyScriptData (fromAlonzoData dat)
+prettyRedeemer inps mints (Ledger.RdmrPtr tag ix) (dat, _) = pTag <:> prettyScriptData (getScriptData $ fromAlonzoData dat)
   where
     pTag =
       case tag of
@@ -156,7 +156,7 @@ prettyDatumMap (TxBodyScriptData _ (Ledger.TxDats dats) _)
   | not $ null dats =
     block "Datums:"
       [ prettyHash (Ledger.extractHash key) <:>
-          prettyScriptData (fromAlonzoData val)
+          prettyScriptData (getScriptData $ fromAlonzoData val)
       | (key, val) <- Map.toList dats
       ]
 prettyDatumMap _ = empty
@@ -181,7 +181,7 @@ prettyTxModifier :: TxModifier -> Doc
 prettyTxModifier (TxModifier txmod) = vcat [prettyMod mod | mod <- txmod]
   where
     prettyPlutusScript = prettyHash . hashScript . PlutusScript PlutusScriptV2
-    prettySimpleScript = prettyHash . hashScript . SimpleScript SimpleScriptV2
+    prettySimpleScript = prettyHash . hashScript . SimpleScript
 
     maybeBlock _ _ _ Nothing   = empty
     maybeBlock tag hd pr (Just d) = hang tag 2 $ fsep [hd, pr d]

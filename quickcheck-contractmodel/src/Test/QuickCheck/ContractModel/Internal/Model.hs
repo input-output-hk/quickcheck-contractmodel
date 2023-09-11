@@ -367,7 +367,7 @@ toStateModelActions (Actions_ rs (Smart k s)) =
   StateModel.Actions_ rs (Smart k $ map mkStep s)
     where mkStep (ActWaitUntil v n) = v StateModel.:= StateModel.ActionWithPolarity (WaitUntil n) StateModel.PosPolarity
           mkStep (ActObservation v n p) = v StateModel.:= StateModel.ActionWithPolarity (Observation n p) StateModel.PosPolarity
-          mkStep act                = varOf act StateModel.:= StateModel.ActionWithPolarity (ContractAction (polarityOf act) (isBind act) (actionOf act)) StateModel.PosPolarity
+          mkStep act                = varOf act StateModel.:= StateModel.ActionWithPolarity (ContractAction (polarityOf act) (isBind act) (actionOf act)) (polarityOf act)
 
 -- TODO: this has to care about polarity once we add negative testing to quickcheck-contractmodel!
 fromStateModelActions :: StateModel.Actions (ModelState s) -> Actions s

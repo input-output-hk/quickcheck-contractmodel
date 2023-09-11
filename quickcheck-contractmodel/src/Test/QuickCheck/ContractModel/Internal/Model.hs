@@ -297,9 +297,8 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
   -- `getAllSymbolics` last because its likely to be stricter than the user precondition
   -- and so if the user relies on the lazyness of the Gen monad by using the precondition
   -- to avoid duplicate checks in the precondition and generator we don't screw that up.
-  precondition s (ContractAction _ _ cmd) = s ^. assertionsOk
-                                          && precondition s cmd
-                                          && getAllSymbolics cmd `symCollectionSubset` (s ^. symbolics)
+  precondition s (ContractAction StateModel.PosPolarity _ cmd) =
+    s ^. assertionsOk && precondition s cmd && getAllSymbolics cmd `symCollectionSubset` (s ^. symbolics)
   precondition s (WaitUntil n)            = n > s ^. currentSlot
   precondition _ Observation{}            = True
   precondition _ _ = False

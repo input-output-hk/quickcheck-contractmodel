@@ -148,6 +148,9 @@ instance ( IsRunnable m
   -- TODO: maybe add that current slot should equal the awaited slot?
   postcondition _ _ _ _ = pure True
 
+  -- TODO: it could be worth-while implementing the negative postcondition here to check that we're not
+  -- accidentally binding any symbolic things in `failureNextState`
+
   monitoring (s0, s1) (ContractAction _ act) env symIndex =
     monitoring @_ @m (s0, s1) act lookup symIndex
     where lookup :: HasSymbolicRep t => Symbolic t -> t

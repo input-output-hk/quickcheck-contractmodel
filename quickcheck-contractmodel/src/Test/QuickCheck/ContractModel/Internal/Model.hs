@@ -340,12 +340,12 @@ isBind _      = False
 
 -- TODO: show polarity here
 instance ContractModel state => Show (Act state) where
-  showsPrec d (Bind _ v a) =
-    showParen (d >= 11) $ showString ("tok." ++ show v ++ " := ") . showsPrec 0 a
+  showsPrec d (Bind p v a) =
+    showParen (d >= 11) $ showString ("[" ++ show p ++ "] tok." ++ show v ++ " := " ) . showsPrec 0 a
   showsPrec d (ActWaitUntil _ n) = showsPrec d (WaitUntil @state n)
   showsPrec d (ActObservation _ n p) = showsPrec d (Observation @state n p)
-  showsPrec d (NoBind _ _ a) =
-    showsPrec d a
+  showsPrec d (NoBind p _ a) =
+    showParen (d > 11) $ showString ("[" ++ show p ++ "]") . showsPrec 0 a
 
 -- TODO: print this as a DL script like we do in quickcheck-dynamic
 instance ContractModel state => Show (Actions state) where

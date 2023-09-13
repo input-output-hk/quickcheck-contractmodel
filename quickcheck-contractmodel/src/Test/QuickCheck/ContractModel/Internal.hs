@@ -123,13 +123,13 @@ translateSymbolic lookup token = case lookupSymbolic (lookup $ symVar token) tok
 instance ( IsRunnable m
          , RunModel state m
          ) => StateModel.RunModel (ModelState state) (RunMonad m) where
-  perform st (ContractAction _ _ a) lookup = do
+  perform st (ContractAction _ a) lookup = do
       -- Run locally and get the registered symbolics out
       withLocalSymbolics $ perform st a (translateSymbolic lookup)
   perform _ (WaitUntil slot) _ = awaitSlot slot
   perform _ Observation{} _ = pure ()
 
-  postcondition (st, _) (ContractAction StateModel.PosPolarity _ act) _ symIndex = do
+  postcondition (st, _) (ContractAction _ act) _ symIndex = do
     -- Ask the model what symbolics we expected to be registered in this run.
     -- NOTE: using `StateModel.Var 0` here is safe because we know that `StateModel` never uses `0` and we
     -- therefore get something unique. Likewise, we know that `nextState` can't observe the
@@ -142,8 +142,6 @@ instance ( IsRunnable m
       , "  Expected: " ++ show expectedSymbolics
       , "  Actual:   " ++ show actualSymbolics ]
     pure $ actualSymbolics == expectedSymbolics
-  -- Negative actions shouldn't run with this postcondition. If they do that's a bug
-  postcondition _ (ContractAction StateModel.NegPolarity _ _) _ _ = error "The impossible happened in postcondition"
   postcondition _ (Observation _ p) lookup _ = do
     cst <- getChainState
     pure $ p (translateSymbolic lookup) cst
@@ -153,7 +151,7 @@ instance ( IsRunnable m
   -- TODO: it could be worth-while implementing the negative postcondition here to check that we're not
   -- accidentally binding any symbolic things in `failureNextState`
 
-  monitoring (s0, s1) (ContractAction _ _ act) env symIndex =
+  monitoring (s0, s1) (ContractAction _ act) env symIndex =
     monitoring @_ @m (s0, s1) act lookup symIndex
     where lookup :: HasSymbolicRep t => Symbolic t -> t
           lookup sym = case lookupSymbolic (env $ symVar sym) sym of

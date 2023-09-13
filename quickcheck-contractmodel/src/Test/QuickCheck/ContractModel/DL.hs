@@ -264,7 +264,7 @@ forAllUniqueDL :: forall state p. (ContractModel state, Testable p)
 forAllUniqueDL state dl prop = DL.forAllUniqueDL state dl (prop . fromStateModelActions)
 
 instance ContractModel s => DL.DynLogicModel (ModelState s) where
-    restricted (ContractAction _ _ act) = restricted act
+    restricted (ContractAction _ act) = restricted act
     restricted WaitUntil{}              = False
     restricted Observation{}            = True
 

@@ -205,22 +205,6 @@
       }
     },
     "flake-utils_3": {
-      "locked": {
-        "lastModified": 1679360468,
-        "narHash": "sha256-LGnza3cfXF10Biw3ZTg0u9o9t7s680Ww200t5KkHTh8=",
-        "owner": "hamishmack",
-        "repo": "flake-utils",
-        "rev": "e1ea268ff47ad475443dbabcd54744b4e5b9d4f5",
-        "type": "github"
-      },
-      "original": {
-        "owner": "hamishmack",
-        "ref": "hkm/nested-hydraJobs",
-        "repo": "flake-utils",
-        "type": "github"
-      }
-    },
-    "flake-utils_4": {
       "inputs": {
         "systems": "systems_3"
       },
@@ -255,6 +239,43 @@
         "type": "github"
       }
     },
+    "ghc980": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1692910316,
+        "narHash": "sha256-Qv8I3GzzIIN32RTEKI38BW5nO1f7j6Xm+dDeDUyYZWo=",
+        "ref": "ghc-9.8",
+        "rev": "249aa8193e4c5c1ee46ce29b39d2fffa57de7904",
+        "revCount": 61566,
+        "submodules": true,
+        "type": "git",
+        "url": "https://gitlab.haskell.org/ghc/ghc"
+      },
+      "original": {
+        "ref": "ghc-9.8",
+        "submodules": true,
+        "type": "git",
+        "url": "https://gitlab.haskell.org/ghc/ghc"
+      }
+    },
+    "ghc99": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1693974777,
+        "narHash": "sha256-r+uFw44X9XVPdDtxylfBuFL+l+5q5cX+vDVT7SCTHB8=",
+        "ref": "hkm/bump-Cabal",
+        "rev": "b2bddd0b8214ac1db6239cc25f7c0aabeb2ebb70",
+        "revCount": 61879,
+        "submodules": true,
+        "type": "git",
+        "url": "https://gitlab.haskell.org/hamishmack/ghc"
+      },
+      "original": {
+        "submodules": true,
+        "type": "git",
+        "url": "https://gitlab.haskell.org/ghc/ghc"
+      }
+    },
     "gitignore": {
       "inputs": {
         "nixpkgs": [
@@ -280,11 +301,11 @@
     "hackage": {
       "flake": false,
       "locked": {
-        "lastModified": 1692836533,
-        "narHash": "sha256-KiT9LGcbo8+3LybTHN/nhKr8dqzeOUGFguM4/scrpCg=",
+        "lastModified": 1695082986,
+        "narHash": "sha256-155gWeN81QVLB7VfP0/G1Os3kWHaRvo/Jyc64Hkh35o=",
         "owner": "input-output-hk",
         "repo": "hackage.nix",
-        "rev": "506de9d06186f96d52179209e848045b33f3d678",
+        "rev": "0da89d4d6e34c13ceda3c4b912e73dd0d2ecfcf7",
         "type": "github"
       },
       "original": {
@@ -335,14 +356,16 @@
         "cabal-36": "cabal-36",
         "cardano-shell": "cardano-shell",
         "flake-compat": "flake-compat",
-        "flake-utils": "flake-utils_3",
         "ghc-8.6.5-iohk": "ghc-8.6.5-iohk",
+        "ghc980": "ghc980",
+        "ghc99": "ghc99",
         "hackage": [
           "iogx",
           "hackage"
         ],
         "hls-1.10": "hls-1.10",
         "hls-2.0": "hls-2.0",
+        "hls-2.2": "hls-2.2",
         "hpc-coveralls": "hpc-coveralls",
         "hydra": "hydra",
         "iserv-proxy": "iserv-proxy",
@@ -362,11 +385,11 @@
         "stackage": "stackage"
       },
       "locked": {
-        "lastModified": 1692319830,
-        "narHash": "sha256-KD5SPPtJETa83lWr5WwhWWRbSelGhGSkeZ7cqweJfoc=",
+        "lastModified": 1695084617,
+        "narHash": "sha256-bJyJnFKG3damZ36tbCv5TfQ2xgI8T/j35cMNO+ZgAnk=",
         "owner": "input-output-hk",
         "repo": "haskell.nix",
-        "rev": "90e45988f1ad35d55e890cef16d7b1a5de5e6196",
+        "rev": "717cf3915d86023c0d029ac1dd27d9ba7dbc43ed",
         "type": "github"
       },
       "original": {
@@ -405,6 +428,23 @@
       "original": {
         "owner": "haskell",
         "ref": "2.0.0.1",
+        "repo": "haskell-language-server",
+        "type": "github"
+      }
+    },
+    "hls-2.2": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1693064058,
+        "narHash": "sha256-8DGIyz5GjuCFmohY6Fa79hHA/p1iIqubfJUTGQElbNk=",
+        "owner": "haskell",
+        "repo": "haskell-language-server",
+        "rev": "b30f4b6cf5822f3112c35d14a0cba51f3fe23b85",
+        "type": "github"
+      },
+      "original": {
+        "owner": "haskell",
+        "ref": "2.2.0.0",
         "repo": "haskell-language-server",
         "type": "github"
       }
@@ -470,11 +510,11 @@
         "sphinxcontrib-haddock": "sphinxcontrib-haddock"
       },
       "locked": {
-        "lastModified": 1692877050,
-        "narHash": "sha256-7YGCcIr4SYVSqx+ol/ZEkFeGbfCyl1Agobp3sGCvYr0=",
+        "lastModified": 1694687357,
+        "narHash": "sha256-OdnM8vnFfvXF4UKRIiluppHbp4oziDrpZz9KQHXBTKM=",
         "owner": "input-output-hk",
         "repo": "iogx",
-        "rev": "ebe1a4ec3188d9f1dfeac08d90a02a853bac95d5",
+        "rev": "a8077b1d203b606d0c13b5b7250557a48148c421",
         "type": "github"
       },
       "original": {
@@ -510,11 +550,11 @@
     "iserv-proxy": {
       "flake": false,
       "locked": {
-        "lastModified": 1688517130,
-        "narHash": "sha256-hUqfxSlo+ffqVdkSZ1EDoB7/ILCL25eYkcCXW9/P3Wc=",
+        "lastModified": 1691634696,
+        "narHash": "sha256-MZH2NznKC/gbgBu8NgIibtSUZeJ00HTLJ0PlWKCBHb0=",
         "ref": "hkm/remote-iserv",
-        "rev": "9151db2a9a61d7f5fe52ff8836f18bbd0fd8933c",
-        "revCount": 13,
+        "rev": "43a979272d9addc29fbffc2e8542c5d96e993d73",
+        "revCount": 14,
         "type": "git",
         "url": "https://gitlab.haskell.org/hamishmack/iserv-proxy.git"
       },
@@ -757,7 +797,7 @@
     "pre-commit-hooks-nix": {
       "inputs": {
         "flake-compat": "flake-compat_2",
-        "flake-utils": "flake-utils_4",
+        "flake-utils": "flake-utils_3",
         "gitignore": "gitignore",
         "nixpkgs": "nixpkgs_2",
         "nixpkgs-stable": "nixpkgs-stable"
@@ -835,11 +875,11 @@
     "stackage": {
       "flake": false,
       "locked": {
-        "lastModified": 1692317324,
-        "narHash": "sha256-AofEuurJHrfMljrCAkMKTWBC5xGluhBZiAfHQ73224Y=",
+        "lastModified": 1695082168,
+        "narHash": "sha256-rkQhCP3re9p5Tp2vr/n84q0pFkjnCljZqnRg7IHmHyU=",
         "owner": "input-output-hk",
         "repo": "stackage.nix",
-        "rev": "4812a420235589a74f9278cca81f6dbf74ffb42f",
+        "rev": "b6b1a1f8310a5e8b96e1e4c1960c5c8102d1effd",
         "type": "github"
       },
       "original": {

@@ -16,7 +16,7 @@ import Cardano.Slotting.Slot (EpochSize (EpochSize))
 import Cardano.Slotting.Time (SlotLength, mkSlotLength)
 import Ouroboros.Consensus.Cardano.Block (CardanoEras)
 import Ouroboros.Consensus.HardFork.History
-import Data.SOP.Counting (NonEmpty (NonEmptyOne))
+import Data.SOP.NonEmpty (NonEmpty (NonEmptyOne))
 import PlutusTx (ToData, toData)
 import Cardano.Ledger.Alonzo.Scripts qualified as Ledger
 
@@ -175,7 +175,7 @@ data ValidityReport = ValidityReport
 -- that make it make sense (and check the budgets here).
 --
 -- Stolen from Hydra
-validateTx :: BundledProtocolParameters Era -> Tx Era -> UTxO Era -> ValidityReport
+validateTx :: LedgerProtocolParameters Era -> Tx Era -> UTxO Era -> ValidityReport
 validateTx pparams tx utxos = case result of
   Left e -> ValidityReport False [show e]
   Right report -> ValidityReport (all isRight (Map.elems report))

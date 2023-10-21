@@ -189,7 +189,7 @@ runContractModel as = do
 data BalanceChangeOptions = BalanceChangeOptions
   { observeScriptValue   :: Bool
   , feeCalucation        :: FeeCalculation
-  , protocolParameters   :: BundledProtocolParameters Era
+  , protocolParameters   :: LedgerProtocolParameters Era
   , addressPrettyPrinter :: AddressInEra Era -> String
   }
 

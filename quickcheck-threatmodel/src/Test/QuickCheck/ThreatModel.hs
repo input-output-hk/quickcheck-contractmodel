@@ -107,6 +107,7 @@ module Test.QuickCheck.ThreatModel
   ) where
 
 import Cardano.Api
+import Cardano.Api.Shelley
 
 import Control.Monad
 
@@ -135,7 +136,7 @@ import Test.QuickCheck.ThreatModel.TxModifier
 data ThreatModelEnv = ThreatModelEnv
   { currentTx    :: Tx Era
   , currentUTxOs :: UTxO Era
-  , pparams      :: BundledProtocolParameters Era
+  , pparams      :: LedgerProtocolParameters Era
   }
 
 -- | The threat model monad is how you construct threat models. It works in the context of a given
@@ -230,7 +231,7 @@ runThreatModel = go False
 
 -- | Evaluate a `ThreatModel` on a list of transactions.
 assertThreatModel :: ThreatModel a
-                  -> BundledProtocolParameters Era
+                  -> LedgerProtocolParameters Era
                   -> [(Tx Era, UTxO Era)]
                   -> Property
 assertThreatModel m params txs = runThreatModel m envs

@@ -44,9 +44,9 @@ class HasChainIndex m where
   getChainState :: m ChainState
 
 allMinAda :: ChainIndex
-          -> BundledProtocolParameters Era
+          -> LedgerProtocolParameters Era
           -> [Lovelace]
-allMinAda ci params =
+allMinAda ci (LedgerProtocolParameters params) =
   [ l
   | TxInState{..} <- transactions ci
   , txOut <- getTxOuts tx

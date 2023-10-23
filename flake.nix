@@ -2,7 +2,7 @@
   description = "Interface to quickcheck-dynamic for Developers of Plutus Scripts";
 
 
-   inputs = {
+  inputs = {
 
     iogx = {
       url = "github:input-output-hk/iogx";
@@ -31,7 +31,7 @@
   };
 
 
-  outputs = inputs: inputs.iogx.lib.mkFlake { 
+  outputs = inputs: inputs.iogx.lib.mkFlake {
     inherit inputs;
     repoRoot = ./.;
     systems = [ "x86_64-darwin" "x86_64-linux" "aarch64-darwin" ];

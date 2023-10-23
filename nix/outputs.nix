@@ -1,6 +1,6 @@
 { repoRoot, inputs, pkgs, lib, system }:
 
-let 
+let
 
   project = lib.iogx.mkHaskellProject {
 
@@ -26,7 +26,7 @@ let
     };
   };
 
-in 
+in
 
 [
   (

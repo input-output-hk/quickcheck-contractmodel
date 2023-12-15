@@ -134,7 +134,7 @@ applyTxMod tx utxos (ChangeValidityRange mlo mhi) =
     (Tx (ShelleyTxBody era body{Ledger.btbValidityInterval=validity'} scripts scriptData auxData scriptValidity) wits, utxos)
   where
     Tx bdy@(ShelleyTxBody era body scripts scriptData auxData scriptValidity) wits = tx
-    TxBody TxBodyContent{txValidityRange = (lo, hi)} = bdy
+    TxBody TxBodyContent{txValidityLowerBound = lo, txValidityUpperBound = hi} = bdy
     validity' = convValidityInterval (fromMaybe lo mlo, fromMaybe hi mhi)
 
 applyTxMod tx utxos (RemoveInput i) =
@@ -291,8 +291,8 @@ applyTxMod tx utxos (ChangeInput txIn maddr mvalue mdatum) =
         (addr, value, datum, rscript)
       Nothing -> error $ "Index " ++ show txIn ++ " doesn't exist."
 
-    txOut = TxOut (anyAddressInShelleyBasedEra (fromMaybe addr maddr))
-                  (TxOutValue MultiAssetInBabbageEra $ fromMaybe value mvalue)
+    txOut = TxOut (anyAddressInShelleyBasedEra shelleyBasedEra (fromMaybe addr maddr))
+                  (TxOutValueShelleyBased shelleyBasedEra $ toMaryValue $ fromMaybe value mvalue)
                   (fromMaybe utxoDatum $ toCtxUTxODatum <$> mdatum)
                   rscript
     utxos' = UTxO . Map.insert txIn txOut . unUTxO $ utxos
@@ -332,7 +332,7 @@ applyTxMod tx utxos (ChangeScriptInput txIn mvalue mdatum mredeemer) =
       Nothing                     -> datum
 
     txOut = TxOut addr
-                  (TxOutValue MultiAssetInBabbageEra $ fromMaybe value mvalue)
+                  (TxOutValueShelleyBased shelleyBasedEra $ toMaryValue $ fromMaybe value mvalue)
                   (fromMaybe utxoDatum $ toCtxUTxODatum <$> mdatum)
                   rscript
 

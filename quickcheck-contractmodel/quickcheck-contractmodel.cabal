@@ -89,6 +89,6 @@ library
       quickcheck-threatmodel
     -- Plutus and Cardano dependencies
     build-depends:
-      cardano-api                                     >= 8.15 && < 8.21,
-      cardano-ledger-core                             >= 1.2.0 && < 1.8,
-      cardano-ledger-shelley                          >= 1.2.0 && < 1.7,
+      cardano-api                                     >= 8.36 && < 8.37,
+      cardano-ledger-core                             >= 1.2.0 && < 1.10,
+      cardano-ledger-shelley                          >= 1.2.0 && < 1.9,

@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               quickcheck-contractmodel
-version:            0.1.5.0
+version:            0.1.6.0
 
 -- A short (one-line) description of the package.
 -- synopsis:
@@ -79,16 +79,16 @@ library
       containers ^>= 0.6.5.1,
       lens ^>= 5.0 || ^>= 5.1 || ^>= 5.2,
       mmorph ^>= 1.2,
-      mtl ^>= 2.2.2,
+      mtl >= 2.2.2 && < 2.4,
       pretty ^>= 1.1.3.6,
       barbies ^>= 2.0.4.0
     -- QuickCheck dependencies
     build-depends:
       QuickCheck ^>= 2.14,
-      quickcheck-dynamic ^>= 3.2.0,
+      quickcheck-dynamic >= 3.2.0 && < 3.4,
       quickcheck-threatmodel
     -- Plutus and Cardano dependencies
     build-depends:
-      cardano-api                                     >= 8.2.0 && < 8.9,
-      cardano-ledger-core                             >= 1.2.0 && < 1.5,
-      cardano-ledger-shelley                          >= 1.2.0 && < 1.5,
+      cardano-api                                     >= 8.36 && < 8.37,
+      cardano-ledger-core                             >= 1.2.0 && < 1.10,
+      cardano-ledger-shelley                          >= 1.2.0 && < 1.9,

@@ -16,7 +16,7 @@ import Cardano.Slotting.Slot (EpochSize (EpochSize))
 import Cardano.Slotting.Time (SlotLength, mkSlotLength)
 import Ouroboros.Consensus.Cardano.Block (CardanoEras)
 import Ouroboros.Consensus.HardFork.History
-import Data.SOP.Counting (NonEmpty (NonEmptyOne))
+import Data.SOP.NonEmpty (NonEmpty (NonEmptyOne))
 import PlutusTx (ToData, toData)
 import Cardano.Ledger.Alonzo.Scripts qualified as Ledger
 
@@ -34,8 +34,7 @@ addressOfTxOut (TxOut (AddressInEra ShelleyAddressInEra{}  addr) _ _ _) = Addres
 addressOfTxOut (TxOut (AddressInEra ByronAddressInAnyEra{} addr) _ _ _) = AddressByron   addr
 
 valueOfTxOut :: TxOut ctx Era -> Value
-valueOfTxOut (TxOut _ (TxOutAdaOnly _ v) _ _) = lovelaceToValue v
-valueOfTxOut (TxOut _ (TxOutValue _ v) _ _)   = v
+valueOfTxOut (TxOut _ v _ _) = txOutValueToValue v
 
 -- | Get the datum from a transaction output.
 datumOfTxOut :: TxOut ctx Era -> TxOutDatum ctx Era
@@ -69,7 +68,7 @@ keyAddressAny = paymentCredentialToAddressAny . PaymentCredentialByKey
 
 -- | Check if an address is a public key address.
 isKeyAddressAny :: AddressAny -> Bool
-isKeyAddressAny = isKeyAddress . anyAddressInShelleyBasedEra @Era
+isKeyAddressAny = isKeyAddress . anyAddressInShelleyBasedEra (shelleyBasedEra @Era)
 
 recomputeScriptData :: Maybe Word64 -- Index to remove
                     -> (Word64 -> Word64)
@@ -83,7 +82,7 @@ recomputeScriptData i f (TxBodyScriptData era dats (Ledger.Redeemers rdmrs)) =
         idxFilter (Ledger.RdmrPtr _ idx) _ = Just idx /= i
 
 emptyTxBodyScriptData :: TxBodyScriptData Era
-emptyTxBodyScriptData = TxBodyScriptData ScriptDataInBabbageEra (Ledger.TxDats mempty) (Ledger.Redeemers mempty)
+emptyTxBodyScriptData = TxBodyScriptData AlonzoEraOnwardsBabbage (Ledger.TxDats mempty) (Ledger.Redeemers mempty)
 
 addScriptData :: Word64
               -> Ledger.Data (ShelleyLedgerEra Era)
@@ -112,7 +111,7 @@ toCtxUTxODatum d = case d of
 
 -- | Convert ScriptData to a `Test.QuickCheck.ContractModel.ThreatModel.Datum`.
 txOutDatum :: ScriptData -> TxOutDatum CtxTx Era
-txOutDatum d = TxOutDatumInTx ScriptDataInBabbageEra (unsafeHashableScriptData d)
+txOutDatum d = TxOutDatumInTx AlonzoEraOnwardsBabbage (unsafeHashableScriptData d)
 
 -- | Convert a Haskell value to ScriptData for use as a
 -- `Test.QuickCheck.ContractModel.ThreatModel.Redeemer` or convert to a
@@ -129,8 +128,8 @@ dummyTxId =
 
 makeTxOut :: AddressAny -> Value -> TxOutDatum CtxTx Era -> ReferenceScript Era -> TxOut CtxUTxO Era
 makeTxOut addr value datum refScript =
-  toCtxUTxOTxOut $ TxOut (anyAddressInShelleyBasedEra addr)
-                         (TxOutValue MultiAssetInBabbageEra value)
+  toCtxUTxOTxOut $ TxOut (anyAddressInShelleyBasedEra shelleyBasedEra addr)
+                         (TxOutValueShelleyBased shelleyBasedEra (toMaryValue value))
                          datum
                          refScript
 
@@ -175,20 +174,21 @@ data ValidityReport = ValidityReport
 -- that make it make sense (and check the budgets here).
 --
 -- Stolen from Hydra
-validateTx :: BundledProtocolParameters Era -> Tx Era -> UTxO Era -> ValidityReport
+validateTx :: LedgerProtocolParameters Era -> Tx Era -> UTxO Era -> ValidityReport
 validateTx pparams tx utxos = case result of
   Left e -> ValidityReport False [show e]
   Right report -> ValidityReport (all isRight (Map.elems report))
                                  [show e | Left e <- Map.elems report]
   where
     result = evaluateTransactionExecutionUnits
+                BabbageEra
                 systemStart
                 (toLedgerEpochInfo eraHistory)
                 pparams
                 utxos
                 (getTxBody tx)
-    eraHistory :: EraHistory CardanoMode
-    eraHistory = EraHistory CardanoMode (mkInterpreter summary)
+    eraHistory :: EraHistory
+    eraHistory = EraHistory (mkInterpreter summary)
 
     summary :: Summary (CardanoEras StandardCrypto)
     summary =
@@ -227,7 +227,7 @@ convValidityInterval (lowerBound, upperBound) =
                         TxValidityNoLowerBound   -> SNothing
                         TxValidityLowerBound _ s -> SJust s
     , invalidHereafter = case upperBound of
-                           TxValidityNoUpperBound _ -> SNothing
-                           TxValidityUpperBound _ s -> SJust s
+                           TxValidityUpperBound _ Nothing -> SNothing
+                           TxValidityUpperBound _ (Just s) -> SJust s
     }
 

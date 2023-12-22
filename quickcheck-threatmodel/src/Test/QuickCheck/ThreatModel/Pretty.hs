@@ -123,7 +123,7 @@ prettyDatum (TxOutDatumInTx _ d)   = prettyScriptData $ getScriptData d
 
 prettyTx :: Tx Era -> Doc
 prettyTx tx@(Tx body@(TxBody (TxBodyContent{..})) _) =
-  block "Tx" [ "Valid:" <+> prettyValidity txValidityRange
+  block "Tx" [ "Valid:" <+> prettyValidity (txValidityLowerBound, txValidityUpperBound)
              , fblock "Inputs:" $ map prettyIn inps
              , block "Outputs:" [ int i <:> prettyTxOutTx out
                                 | (i, out) <- zip [0..] txOuts ]
@@ -166,7 +166,6 @@ prettyMinting TxMintNone            = empty
 prettyMinting (TxMintValue _ val _) = block "Minting:" [prettyValue val]
 
 prettyValidity :: (TxValidityLowerBound Era, TxValidityUpperBound Era) -> Doc
-prettyValidity (TxValidityNoLowerBound, TxValidityNoUpperBound{}) = "any"
 prettyValidity (lo, hi) = prettyLowerBound lo <+> "-" <+> prettyUpperBound hi
 
 prettyLowerBound :: TxValidityLowerBound Era -> Doc
@@ -174,8 +173,8 @@ prettyLowerBound TxValidityNoLowerBound        = "-∞"
 prettyLowerBound (TxValidityLowerBound _ slot) = text (show $ unSlotNo slot)
 
 prettyUpperBound :: TxValidityUpperBound Era -> Doc
-prettyUpperBound TxValidityNoUpperBound{}      = "∞"
-prettyUpperBound (TxValidityUpperBound _ slot) = text (show $ unSlotNo slot)
+prettyUpperBound (TxValidityUpperBound _ Nothing)     = "∞"
+prettyUpperBound (TxValidityUpperBound _ (Just slot)) = text (show $ unSlotNo slot)
 
 prettyTxModifier :: TxModifier -> Doc
 prettyTxModifier (TxModifier txmod) = vcat [prettyMod mod | mod <- txmod]

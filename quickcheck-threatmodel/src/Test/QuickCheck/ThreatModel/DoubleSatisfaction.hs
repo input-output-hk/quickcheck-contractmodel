@@ -3,8 +3,6 @@ module Test.QuickCheck.ThreatModel.DoubleSatisfaction
   ( doubleSatisfaction
   ) where
 
-import Cardano.Api
-
 import PlutusTx.Prelude (BuiltinByteString)
 
 import Test.QuickCheck.ThreatModel
@@ -50,7 +48,7 @@ doubleSatisfaction = do
               , "i.e. the script actually cares about this output." ]
 
   threatPrecondition $ shouldNotValidate $ changeValueOf output (valueOf output <> negateValue ada)
-                                        <> addOutput signer ada TxOutDatumNone
+                                        <> addOutput signer ada TxOutDatumNone ReferenceScriptNone
 
   counterexampleTM $
     paragraph [ "Now we try the same thing again, but this time there is another script"
@@ -62,8 +60,8 @@ doubleSatisfaction = do
 
       victimTarget = addressOf output
 
-  shouldNotValidate $ addSimpleScriptInput safeScript ada
-                   <> addOutput      victimTarget ada uniqueDatum
+  shouldNotValidate $ addSimpleScriptInput safeScript ada ReferenceScriptNone
+                   <> addOutput      victimTarget ada uniqueDatum ReferenceScriptNone
                    <> changeValueOf  output (valueOf output <> negateValue ada)
-                   <> addOutput      signer ada TxOutDatumNone
+                   <> addOutput      signer ada TxOutDatumNone ReferenceScriptNone
 

@@ -3,8 +3,8 @@ module Test.QuickCheck.ThreatModel.TxModifier where
 
 import Cardano.Api
 import Cardano.Api.Shelley
-import Cardano.Ledger.Alonzo.Tx qualified as Ledger (indexOf)
 import Cardano.Ledger.Alonzo.TxWits qualified as Ledger
+import Cardano.Ledger.Alonzo.TxBody qualified as Ledger
 import Cardano.Ledger.Babbage.TxBody qualified as Ledger
 import Cardano.Ledger.Binary qualified as CBOR
 import Cardano.Ledger.Api.Era (eraProtVerLow)
@@ -202,9 +202,9 @@ applyTxMod tx utxos (RemoveInput i) =
     body' = body{ Ledger.btbInputs = inputs'
                 , Ledger.btbReferenceInputs = refInputs'
                 }
-    scriptData' = case Ledger.indexOf (toShelleyTxIn i) btbInputs of
+    scriptData' = case Ledger.indexOf (Ledger.AsItem (toShelleyTxIn i)) btbInputs of
       SNothing  -> scriptData
-      SJust idx -> recomputeScriptData (Just idx) idxUpdate scriptData
+      SJust (Ledger.AsIndex idx) -> recomputeScriptData (Just idx) idxUpdate scriptData
         where
           idxUpdate idx'
             | idx' > idx = idx' - 1
@@ -241,7 +241,7 @@ applyTxMod tx utxos (AddInput addr value datum rscript False) =
 
     input   = toShelleyTxIn txIn
     inputs' = Set.insert input btbInputs
-    SJust idx = Ledger.indexOf input inputs'
+    SJust (Ledger.AsIndex idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
 
     txOut   = makeTxOut addr value datum rscript
     utxos'  = UTxO . Map.insert txIn txOut . unUTxO $ utxos
@@ -306,7 +306,7 @@ applyTxMod tx utxos (AddReferenceScriptInput script value datum redeemer) =
     txOut  = makeTxOut addr value datum ReferenceScriptNone
     utxos' = UTxO . Map.insert txIn txOut . unUTxO $ utxos
 
-    SJust idx = Ledger.indexOf input inputs'
+    SJust (Ledger.AsIndex idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
     idxUpdate idx'
       | idx' >= idx = idx' + 1
       | otherwise   = idx'
@@ -340,7 +340,7 @@ applyTxMod tx utxos (AddPlutusScriptInput script value datum redeemer rscript) =
     newScript = toShelleyScript @Era scriptInEra
     scripts'  = scripts ++ [newScript]
 
-    SJust idx = Ledger.indexOf input inputs'
+    SJust (Ledger.AsIndex idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
     idxUpdate idx'
       | idx' >= idx = idx' + 1
       | otherwise   = idx'
@@ -376,7 +376,7 @@ applyTxMod tx utxos (AddSimpleScriptInput script value rscript False) =
     newScript = toShelleyScript @Era scriptInEra
     scripts'  = scripts ++ [newScript]
 
-    SJust idx = Ledger.indexOf input inputs'
+    SJust (Ledger.AsIndex idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
     idxUpdate idx'
       | idx' >= idx = idx' + 1
       | otherwise   = idx'
@@ -465,7 +465,7 @@ applyTxMod tx utxos (ChangeScriptInput txIn mvalue mdatum mredeemer mrscript) =
       TxBodyNoScriptData -> error "No script data available"
       TxBodyScriptData _ (Ledger.TxDats dats) (Ledger.Redeemers rdmrs) ->
         (fromJust $ Map.lookup utxoDatumHash dats,
-         fromJust $ Map.lookup (Ledger.RdmrPtr Ledger.Spend idx) rdmrs)
+         fromJust $ Map.lookup (Ledger.AlonzoSpending (Ledger.AsIndex idx)) rdmrs)
 
     utxoDatumHash = case utxoDatum of
       TxOutDatumNone       -> error "No existing datum"
@@ -486,9 +486,9 @@ applyTxMod tx utxos (ChangeScriptInput txIn mvalue mdatum mredeemer mrscript) =
 
     utxos' = UTxO . Map.insert txIn txOut . unUTxO $ utxos
 
-    idx = case Ledger.indexOf (toShelleyTxIn txIn) btbInputs of
-      SJust idx -> idx
-      _         -> error "The impossible happened!"
+    idx = case Ledger.indexOf (Ledger.AsItem (toShelleyTxIn txIn)) btbInputs of
+      SJust (Ledger.AsIndex idx) -> idx
+      _                          -> error "The impossible happened!"
 
     scriptData' = addScriptData idx adatum
                                     (fromMaybe redeemer (toAlonzoData . unsafeHashableScriptData <$> mredeemer), exunits)

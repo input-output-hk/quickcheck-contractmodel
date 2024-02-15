@@ -4,14 +4,13 @@ module Test.QuickCheck.ThreatModel.Cardano.Api where
 import Cardano.Api
 import Cardano.Api.Byron
 import Cardano.Api.Shelley
-import Cardano.Ledger.Alonzo.Tx qualified as Ledger (Data, hashData, indexOf)
+import Cardano.Ledger.Api.Tx.Body qualified as Ledger
 import Cardano.Ledger.Alonzo.TxWits qualified as Ledger
+import Cardano.Ledger.Alonzo.TxBody qualified as Ledger
 import Cardano.Ledger.Babbage.TxBody qualified as Ledger
 import Cardano.Ledger.Crypto (StandardCrypto)
-import Cardano.Ledger.Keys (coerceKeyRole, hashKey)
-import Cardano.Ledger.Shelley.TxBody (WitVKey (..))
+import Cardano.Ledger.Keys (WitVKey (..), coerceKeyRole, hashKey)
 import Cardano.Ledger.Allegra.Scripts (ValidityInterval (..))
-import Cardano.Ledger.Block (txid)
 import Cardano.Slotting.Slot (EpochSize (EpochSize))
 import Cardano.Slotting.Time (SlotLength, mkSlotLength)
 import Ouroboros.Consensus.Cardano.Block (CardanoEras)
@@ -48,9 +47,9 @@ redeemerOfTxIn tx txIn = redeemer
     redeemer = case scriptData of
       TxBodyNoScriptData -> Nothing
       TxBodyScriptData _ _ (Ledger.Redeemers rdmrs) ->
-        getScriptData . fromAlonzoData . fst <$> Map.lookup (Ledger.RdmrPtr Ledger.Spend idx) rdmrs
+        getScriptData . fromAlonzoData . fst <$> Map.lookup (Ledger.AlonzoSpending idx) rdmrs
 
-    idx = case Ledger.indexOf (toShelleyTxIn txIn) inputs of
+    idx = case Ledger.indexOf (Ledger.AsItem (toShelleyTxIn txIn)) inputs of
       SJust idx -> idx
       _         -> error "The impossible happened!"
 
@@ -70,21 +69,29 @@ keyAddressAny = paymentCredentialToAddressAny . PaymentCredentialByKey
 isKeyAddressAny :: AddressAny -> Bool
 isKeyAddressAny = isKeyAddress . anyAddressInShelleyBasedEra (shelleyBasedEra @Era)
 
-recomputeScriptData :: Maybe Word64 -- Index to remove
-                    -> (Word64 -> Word64)
+recomputeScriptData :: Maybe Word32 -- Index to remove
+                    -> (Word32 -> Word32)
                     -> TxBodyScriptData Era
                     -> TxBodyScriptData Era
 recomputeScriptData _ _ TxBodyNoScriptData = TxBodyNoScriptData
 recomputeScriptData i f (TxBodyScriptData era dats (Ledger.Redeemers rdmrs)) =
   TxBodyScriptData era dats
     (Ledger.Redeemers $ Map.mapKeys updatePtr $ Map.filterWithKey idxFilter rdmrs)
-  where updatePtr (Ledger.RdmrPtr tag idx) = Ledger.RdmrPtr tag (f idx)
-        idxFilter (Ledger.RdmrPtr _ idx) _ = Just idx /= i
+  where -- updatePtr = Ledger.hoistPlutusPurpose (\(Ledger.AsIndex ix) -> Ledger.AsIndex (f ix)) -- TODO: replace when hoistPlutusPurpose is available
+        updatePtr = \case
+          Ledger.AlonzoMinting (Ledger.AsIndex ix) -> Ledger.AlonzoMinting (Ledger.AsIndex (f ix))
+          Ledger.AlonzoSpending (Ledger.AsIndex ix) -> Ledger.AlonzoSpending (Ledger.AsIndex (f ix))
+          Ledger.AlonzoRewarding (Ledger.AsIndex ix) -> Ledger.AlonzoRewarding (Ledger.AsIndex (f ix))
+          Ledger.AlonzoCertifying (Ledger.AsIndex ix) -> Ledger.AlonzoCertifying (Ledger.AsIndex (f ix))
+        idxFilter (Ledger.AlonzoSpending (Ledger.AsIndex idx)) _ = Just idx /= i
+        idxFilter (Ledger.AlonzoMinting (Ledger.AsIndex idx)) _ = Just idx /= i
+        idxFilter (Ledger.AlonzoCertifying (Ledger.AsIndex idx)) _ = Just idx /= i
+        idxFilter (Ledger.AlonzoRewarding (Ledger.AsIndex idx)) _ = Just idx /= i
 
 emptyTxBodyScriptData :: TxBodyScriptData Era
 emptyTxBodyScriptData = TxBodyScriptData AlonzoEraOnwardsBabbage (Ledger.TxDats mempty) (Ledger.Redeemers mempty)
 
-addScriptData :: Word64
+addScriptData :: Word32
               -> Ledger.Data (ShelleyLedgerEra Era)
               -> (Ledger.Data (ShelleyLedgerEra Era), Ledger.ExUnits)
               -> TxBodyScriptData Era
@@ -92,7 +99,7 @@ addScriptData :: Word64
 addScriptData ix dat rdmr TxBodyNoScriptData = addScriptData ix dat rdmr emptyTxBodyScriptData
 addScriptData ix dat rdmr (TxBodyScriptData era (Ledger.TxDats dats) (Ledger.Redeemers rdmrs)) =
   TxBodyScriptData era (Ledger.TxDats $ Map.insert (Ledger.hashData dat) dat dats)
-                       (Ledger.Redeemers $ Map.insert (Ledger.RdmrPtr Ledger.Spend ix) rdmr rdmrs)
+                       (Ledger.Redeemers $ Map.insert (Ledger.AlonzoSpending (Ledger.AsIndex ix)) rdmr rdmrs)
 
 addDatum :: Ledger.Data (ShelleyLedgerEra Era)
          -> TxBodyScriptData Era
@@ -123,8 +130,8 @@ toScriptData = fromPlutusData . toData
 dummyTxId :: TxId
 dummyTxId =
   fromShelleyTxId
-  $ txid @LedgerEra
-  $ Ledger.mkBabbageTxBody @LedgerEra
+  $ Ledger.txIdTxBody @LedgerEra
+  $ Ledger.mkBasicTxBody
 
 makeTxOut :: AddressAny -> Value -> TxOutDatum CtxTx Era -> ReferenceScript Era -> TxOut CtxUTxO Era
 makeTxOut addr value datum refScript =

@@ -28,16 +28,13 @@ paragraph :: [String] -> String
 paragraph s = show $ (fsep . map text . words . unwords $ s) $$ text ""
 
 block :: Doc -> [Doc] -> Doc
-block hd body = hang hd 2 $ vcat body
+block hd body = hd $$ nest 2 (vcat body)
 
 fblock :: Doc -> [Doc] -> Doc
 fblock hd body = hang hd 2 $ fsep body
 
 hblock :: Doc -> [Doc] -> Doc
 hblock hd body = hd <+> fsep body
-
-hblock' :: Int -> Doc -> [Doc] -> Doc
-hblock' n hd body = hd $$ nest n (fsep body)
 
 pList :: [Doc] -> Doc
 pList = brackets . fsep . punctuate comma
@@ -62,7 +59,8 @@ prettyOutput (Output txout (TxIx i)) =
 
 prettyUTxO :: UTxO Era -> Doc
 prettyUTxO (UTxO utxos) =
-  block "UTxOs" [ hblock' ind (prettyIn i <> ":") [prettyTxOut o] | (i, o) <- Map.toList utxos ]
+  block "UTxOs" [ (prettyIn i <> ":") $$ nest ind (prettyTxOut o)
+                | (i, o) <- Map.toList utxos ]
   where
     ind | or [ i > 9 | TxIn _ (TxIx i) <- Map.keys utxos ] = 13
         | otherwise                                        = 12
@@ -72,10 +70,11 @@ prettyIn (TxIn hash ix) =
   prettyHash hash <> brackets (prettyIx ix)
 
 prettyTxOut :: TxOut CtxUTxO Era -> Doc
-prettyTxOut (TxOut (AddressInEra _ addr) value datum _) = -- TODO: ref script
+prettyTxOut (TxOut (AddressInEra _ addr) value datum rscript) =
   hblock "TxOut" [ prettyAddress (toAddressAny addr)
                  , prettyValue (txOutValueToValue value)
                  , prettyDatum datum'
+                 , prettyRefScript rscript
                  ]
   where
     datum' = case datum of
@@ -85,10 +84,11 @@ prettyTxOut (TxOut (AddressInEra _ addr) value datum _) = -- TODO: ref script
 
 
 prettyTxOutTx :: TxOut CtxTx Era -> Doc
-prettyTxOutTx (TxOut (AddressInEra _ addr) value datum _) = -- TODO: ref script
+prettyTxOutTx (TxOut (AddressInEra _ addr) value datum rscript) =
   hblock "TxOut" [ prettyAddress (toAddressAny addr)
                  , prettyValue (txOutValueToValue value)
                  , prettyDatum datum
+                 , prettyRefScript rscript
                  ]
 
 prettyAddress :: AddressAny -> Doc
@@ -116,22 +116,33 @@ prettyHash :: Show a => a -> Doc
 prettyHash = text . take 7 . drop 1 . show
 
 prettyDatum :: Datum -> Doc
-prettyDatum TxOutDatumNone         = empty
+prettyDatum TxOutDatumNone         = "Datum#None"
 prettyDatum (TxOutDatumHash _ h)   = "Datum#" <> prettyHash h
 prettyDatum (TxOutDatumInline _ d) = prettyScriptData $ getScriptData d
 prettyDatum (TxOutDatumInTx _ d)   = prettyScriptData $ getScriptData d
 
+prettyRefScript :: ReferenceScript Era -> Doc
+prettyRefScript ReferenceScriptNone   = "RefScript#None"
+prettyRefScript (ReferenceScript _ s) = "RefScript#" <> prettyScript s
+
+prettyScript :: ScriptInAnyLang -> Doc
+prettyScript (ScriptInAnyLang _ s) = prettyHash (hashScript s)
+
 prettyTx :: Tx Era -> Doc
 prettyTx tx@(Tx body@(TxBody (TxBodyContent{..})) _) =
-  block "Tx" [ "Valid:" <+> prettyValidity (txValidityLowerBound, txValidityUpperBound)
-             , fblock "Inputs:" $ map prettyIn inps
-             , block "Outputs:" [ int i <:> prettyTxOutTx out
-                                | (i, out) <- zip [0..] txOuts ]
-             , prettyMinting txMintValue
-             , prettyDatumMap scriptdat
-             , block "Redeemers:" $ map (uncurry $ prettyRedeemer inps mnts) $ Map.toList rdmrs
-             , block "Signed by:" $ map prettyHash (txSigners tx)
-             ]
+  block "Tx" $ [ "Valid:" <+> prettyValidity (txValidityLowerBound, txValidityUpperBound)
+               , fblock "Inputs:" $ map prettyIn inps
+               ] ++
+               [ fblock "Reference inputs:" $ map prettyIn refinps
+               | TxInsReference _ refinps <- [txInsReference]
+               ] ++
+               [ block "Outputs:" [ int i <:> prettyTxOutTx out
+                                  | (i, out) <- zip [0..] txOuts ]
+               , prettyMinting txMintValue
+               , prettyDatumMap scriptdat
+               , block "Redeemers:" $ map (uncurry $ prettyRedeemer inps mnts) $ Map.toList rdmrs
+               , block "Signed by:" $ map prettyHash (txSigners tx)
+               ]
   where
     ShelleyTxBody _ _ _ scriptdat _ _ = body
     inps = sort . map fst $ txIns
@@ -176,12 +187,15 @@ prettyUpperBound :: TxValidityUpperBound Era -> Doc
 prettyUpperBound (TxValidityUpperBound _ Nothing)     = "∞"
 prettyUpperBound (TxValidityUpperBound _ (Just slot)) = text (show $ unSlotNo slot)
 
+prettyPlutusV2Script :: PlutusScript PlutusScriptV2 -> Doc
+prettyPlutusV2Script = prettyHash . hashScript . PlutusScript PlutusScriptV2
+
+prettySimpleScript :: SimpleScript -> Doc
+prettySimpleScript = prettyHash . hashScript . SimpleScript
+
 prettyTxModifier :: TxModifier -> Doc
 prettyTxModifier (TxModifier txmod) = vcat [prettyMod mod | mod <- txmod]
   where
-    prettyPlutusScript = prettyHash . hashScript . PlutusScript PlutusScriptV2
-    prettySimpleScript = prettyHash . hashScript . SimpleScript
-
     maybeBlock _ _ _ Nothing   = empty
     maybeBlock tag hd pr (Just d) = hang tag 2 $ fsep [hd, pr d]
 
@@ -191,47 +205,79 @@ prettyTxModifier (TxModifier txmod) = vcat [prettyMod mod | mod <- txmod]
     prettyMod (RemoveOutput ix) =
       "removeOutput" <+> prettyIx ix
 
-    prettyMod (ChangeOutput ix maddr mvalue mdatum) =
-      vcat [ maybeBlock "changeAddressOf" (prettyIx ix) prettyAddress maddr
-           , maybeBlock "changeValueOf"   (prettyIx ix) prettyValue mvalue
-           , maybeBlock "changeDatumOf"   (prettyIx ix) prettyDatum mdatum
+    prettyMod (ChangeOutput ix maddr mvalue mdatum mrefscript) =
+      vcat [ maybeBlock "changeAddressOf"   (prettyIx ix) prettyAddress maddr
+           , maybeBlock "changeValueOf"     (prettyIx ix) prettyValue mvalue
+           , maybeBlock "changeDatumOf"     (prettyIx ix) prettyDatum mdatum
+           , maybeBlock "changeRefScriptOf" (prettyIx ix) prettyRefScript mrefscript
            ]
 
-    prettyMod (ChangeInput txIn maddr mvalue mdatum) =
-      vcat [ maybeBlock "changeAddressOf" (prettyIn txIn) prettyAddress maddr
-           , maybeBlock "changeValueOf"   (prettyIn txIn) prettyValue mvalue
-           , maybeBlock "changeDatumOf"   (prettyIn txIn) prettyDatum mdatum
+    prettyMod (ChangeInput txIn maddr mvalue mdatum mrefscript) =
+      vcat [ maybeBlock "changeAddressOf"   (prettyIn txIn) prettyAddress maddr
+           , maybeBlock "changeValueOf"     (prettyIn txIn) prettyValue mvalue
+           , maybeBlock "changeDatumOf"     (prettyIn txIn) prettyDatum mdatum
+           , maybeBlock "changeRefScriptOf" (prettyIn txIn) prettyRefScript mrefscript
            ]
 
-    prettyMod (ChangeScriptInput txIn mvalue mdatum mrdmr) =
-      vcat [ maybeBlock "changeValueOf"    (prettyIn txIn) prettyValue mvalue
-           , maybeBlock "changeDatumOf"    (prettyIn txIn) prettyDatum mdatum
-           , maybeBlock "changeRedeemerOf" (prettyIn txIn) prettyScriptData mrdmr
+    prettyMod (ChangeScriptInput txIn mvalue mdatum mrdmr mrefscript) =
+      vcat [ maybeBlock "changeValueOf"     (prettyIn txIn) prettyValue mvalue
+           , maybeBlock "changeDatumOf"     (prettyIn txIn) prettyDatum mdatum
+           , maybeBlock "changeRedeemerOf"  (prettyIn txIn) prettyScriptData mrdmr
+           , maybeBlock "changeRefScriptOf" (prettyIn txIn) prettyRefScript mrefscript
            ]
 
-    prettyMod (AddOutput addr value datum) =
+    prettyMod (AddOutput addr value datum refscript) =
       fblock "addOutput" [ prettyAddress addr
                          , prettyValue value
                          , prettyDatum datum
+                         , prettyRefScript refscript
                          ]
 
-    prettyMod (AddInput addr value datum) =
-      fblock "addInput" [ prettyAddress addr
-                        , prettyValue value
-                        , prettyDatum datum
-                        ]
+    prettyMod (AddInput addr value datum rscript isReferenceInput) =
+      fblock ("add" <> input)
+        [ prettyAddress addr
+        , prettyValue value
+        , prettyDatum datum
+        , prettyRefScript rscript
+        ]
+      where
+        input | isReferenceInput = "ReferenceInput"
+              | otherwise = "Input"
 
-    prettyMod (AddPlutusScriptInput script value datum redeemer) =
-      fblock "addPlutusScriptInput" [ prettyPlutusScript script
-                                    , prettyValue value
-                                    , prettyDatum datum
-                                    , prettyScriptData redeemer
-                                    ]
+    prettyMod (AddPlutusScriptInput script value datum redeemer rscript) =
+      fblock "addPlutusScriptInput"
+        [ prettyPlutusV2Script script
+        , prettyValue value
+        , prettyDatum datum
+        , prettyScriptData redeemer
+        , prettyRefScript rscript
+        ]
 
-    prettyMod (AddSimpleScriptInput script value) =
-      fblock "addSimpleScriptInput" [ prettySimpleScript script
-                                    , prettyValue value
-                                    ]
+    prettyMod (AddReferenceScriptInput script value datum redeemer) =
+      fblock "addReferenceScriptInput"
+        [ prettyHash script
+        , prettyValue value
+        , prettyDatum datum
+        , prettyScriptData redeemer
+        ]
+
+    prettyMod (AddPlutusScriptReferenceInput script value datum rscript) =
+      fblock "addPlutusScriptReferenceInput"
+        [ prettyPlutusV2Script script
+        , prettyValue value
+        , prettyDatum datum
+        , prettyRefScript rscript
+        ]
+
+    prettyMod (AddSimpleScriptInput script value rscript isReferenceInput) =
+      fblock ("addSimpleScript" <> input)
+        [ prettySimpleScript script
+        , prettyValue value
+        , prettyRefScript rscript
+        ]
+      where
+        input | isReferenceInput = "ReferenceInput"
+              | otherwise = "Input"
 
     prettyMod (ChangeValidityRange (Just lo) (Just hi)) =
       fblock "changeValidityRange" [ prettyValidity (lo, hi) ]

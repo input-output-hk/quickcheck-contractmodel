@@ -43,6 +43,10 @@ module Test.QuickCheck.ThreatModel
   , addKeyInput
   , addPlutusScriptInput
   , addSimpleScriptInput
+  , addReferenceScriptInput
+  , addKeyReferenceInput
+  , addPlutusScriptReferenceInput
+  , addSimpleScriptReferenceInput
   , removeInput
   , changeRedeemerOf
   , changeValidityRange
@@ -68,13 +72,18 @@ module Test.QuickCheck.ThreatModel
   , getThreatModelEnv
   , originalTx
   , getTxInputs
+  , getTxReferenceInputs
   , getTxOutputs
   , getRedeemer
   -- ** Random generation
   , forAllTM
   , pickAny
   , anySigner
+  , anyInput
+  , anyReferenceInput
+  , anyOutput
   , anyInputSuchThat
+  , anyReferenceInputSuchThat
   , anyOutputSuchThat
   -- ** Monitoring
   , counterexampleTM
@@ -104,10 +113,11 @@ module Test.QuickCheck.ThreatModel
   , prettyDatum
   , prettyInput
   , prettyOutput
+  , module X
   ) where
 
-import Cardano.Api
-import Cardano.Api.Shelley
+import Cardano.Api as X
+import Cardano.Api.Shelley as X
 
 import Control.Monad
 
@@ -338,6 +348,15 @@ getTxInputs = do
        , Just txout <- [Map.lookup i utxos]
        ]
 
+-- | Get the reference inputs from the original transaction.
+getTxReferenceInputs :: ThreatModel [Input]
+getTxReferenceInputs = do
+  ThreatModelEnv tx (UTxO utxos) _ <- getThreatModelEnv
+  pure [ Input txout i
+       | i <- txReferenceInputs tx
+       , Just txout <- [Map.lookup i utxos]
+       ]
+
 -- | Get the redeemer (if any) for an input of the original transaction.
 getRedeemer :: Input -> ThreatModel (Maybe Redeemer)
 getRedeemer (Input _ txIn) = do
@@ -348,9 +367,25 @@ getRedeemer (Input _ txIn) = do
 forAllTM :: Show a => Gen a -> (a -> [a]) -> ThreatModel a
 forAllTM g s = Generate g s pure
 
+-- | Pick a random input
+anyInput :: ThreatModel Input
+anyInput = anyInputSuchThat (const True)
+
+-- | Pick a random reference input
+anyReferenceInput :: ThreatModel Input
+anyReferenceInput = anyReferenceInputSuchThat (const True)
+
+-- | Pick a random output
+anyOutput :: ThreatModel Output
+anyOutput = anyOutputSuchThat (const True)
+
 -- | Pick a random input satisfying the given predicate.
 anyInputSuchThat :: (Input -> Bool) -> ThreatModel Input
 anyInputSuchThat p = pickAny . filter p =<< getTxInputs
+
+-- | Pick a random reference input satisfying the given predicate.
+anyReferenceInputSuchThat :: (Input -> Bool) -> ThreatModel Input
+anyReferenceInputSuchThat p = pickAny . filter p =<< getTxReferenceInputs
 
 -- | Pick a random output satisfying the given predicate.
 anyOutputSuchThat :: (Output -> Bool) -> ThreatModel Output

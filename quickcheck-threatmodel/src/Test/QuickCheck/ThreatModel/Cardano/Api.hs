@@ -40,6 +40,9 @@ valueOfTxOut (TxOut _ v _ _) = txOutValueToValue v
 datumOfTxOut :: TxOut ctx Era -> TxOutDatum ctx Era
 datumOfTxOut (TxOut _ _ datum _) = datum
 
+referenceScriptOfTxOut :: TxOut ctx Era -> ReferenceScript Era
+referenceScriptOfTxOut (TxOut _ _ _ rscript) = rscript
+
 redeemerOfTxIn :: Tx Era -> TxIn -> Maybe ScriptData
 redeemerOfTxIn tx txIn = redeemer
   where
@@ -143,6 +146,12 @@ txSigners (Tx _ wits) = [ toHash wit | ShelleyKeyWitness _ (WitVKey wit _) <- wi
 txInputs :: Tx Era -> [TxIn]
 txInputs (Tx (TxBody body) _) = map fst $ txIns body
 
+txReferenceInputs :: Tx Era -> [TxIn]
+txReferenceInputs (Tx (TxBody body) _) =
+  case txInsReference body of
+    TxInsReferenceNone     -> []
+    TxInsReference _ txins -> txins
+
 txOutputs :: Tx Era -> [TxOut CtxTx Era]
 txOutputs (Tx (TxBody body) _) = txOuts body
 
@@ -216,7 +225,12 @@ validateTx pparams tx utxos = case result of
 -- | Keep only UTxOs mentioned in the given transaction.
 restrictUTxO :: Tx Era -> UTxO Era -> UTxO Era
 restrictUTxO (Tx (TxBody TxBodyContent{..}) _) (UTxO utxo) =
-  UTxO $ Map.filterWithKey (\ k _ -> k `elem` map fst txIns) utxo
+  UTxO $ Map.filterWithKey (\ k _ -> k `elem` map fst txIns
+                                  || k `elem` toInputList txInsReference
+                           ) utxo
+  where
+    toInputList (TxInsReference _ ins) = ins
+    toInputList _ = []
 
 convValidityInterval
   :: (TxValidityLowerBound era, TxValidityUpperBound era)

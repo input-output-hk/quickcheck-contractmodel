@@ -81,7 +81,7 @@ library
     -- Plutus and Cardano dependencies
     build-depends:
       plutus-tx                                       >= 1.5.0 && < 1.16,
-      cardano-api                                     >= 8.36 && < 8.37,
+      cardano-api                                     >= 8.36 && < 8.38,
       cardano-strict-containers                       >= 0.1.2 && < 0.2,
       cardano-slotting                                >= 0.1.1 && < 0.2,
       cardano-ledger-binary                           >= 1.1.1 && < 1.3,

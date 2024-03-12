@@ -11,8 +11,7 @@ import Data.Map qualified as Map
 
 import Cardano.Api
 import Cardano.Api.Shelley
-import Cardano.Ledger.Shelley.TxBody (WitVKey (..))
-import Cardano.Ledger.Keys (hashKey, coerceKeyRole)
+import Cardano.Ledger.Keys (WitVKey (..), hashKey, coerceKeyRole)
 
 import Test.QuickCheck.ContractModel.Internal.Common
 import Test.QuickCheck.ContractModel.Internal.Utils

@@ -3,14 +3,15 @@ module Test.QuickCheck.ThreatModel.TxModifier where
 
 import Cardano.Api
 import Cardano.Api.Shelley
+import Cardano.Ledger.Alonzo.Scripts qualified as Ledger
 import Cardano.Ledger.Alonzo.TxWits qualified as Ledger
 import Cardano.Ledger.Alonzo.TxBody qualified as Ledger
-import Cardano.Ledger.Babbage.TxBody qualified as Ledger
+import Cardano.Ledger.Conway.Scripts qualified as Ledger
+import Cardano.Ledger.Conway.TxBody qualified as Ledger
 import Cardano.Ledger.Binary qualified as CBOR
 import Cardano.Ledger.Api.Era (eraProtVerLow)
 import Data.Coerce
 
-import Cardano.Ledger.Alonzo.Scripts qualified as Ledger
 import Data.Map qualified as Map
 import Data.Maybe
 import Data.Maybe.Strict
@@ -187,7 +188,7 @@ mkNewTxIn utxos = TxIn dummyTxId (TxIx txIx)
 applyTxMod :: Tx Era -> UTxO Era -> TxMod -> (Tx Era, UTxO Era)
 
 applyTxMod tx utxos (ChangeValidityRange mlo mhi) =
-    (Tx (ShelleyTxBody era body{Ledger.btbValidityInterval=validity'} scripts scriptData auxData scriptValidity) wits, utxos)
+    (Tx (ShelleyTxBody era body{Ledger.ctbVldt=validity'} scripts scriptData auxData scriptValidity) wits, utxos)
   where
     Tx bdy@(ShelleyTxBody era body scripts scriptData auxData scriptValidity) wits = tx
     TxBody TxBodyContent{txValidityLowerBound = lo, txValidityUpperBound = hi} = bdy
@@ -196,13 +197,13 @@ applyTxMod tx utxos (ChangeValidityRange mlo mhi) =
 applyTxMod tx utxos (RemoveInput i) =
     (Tx (ShelleyTxBody era body' scripts scriptData' auxData validity) wits, utxos)
   where
-    Tx (ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
-    inputs' = Set.delete (toShelleyTxIn i) btbInputs
-    refInputs' = Set.delete (toShelleyTxIn i) btbReferenceInputs
-    body' = body{ Ledger.btbInputs = inputs'
-                , Ledger.btbReferenceInputs = refInputs'
+    Tx (ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
+    inputs' = Set.delete (toShelleyTxIn i) ctbSpendInputs
+    refInputs' = Set.delete (toShelleyTxIn i) ctbReferenceInputs
+    body' = body{ Ledger.ctbSpendInputs = inputs'
+                , Ledger.ctbReferenceInputs = refInputs'
                 }
-    scriptData' = case Ledger.indexOf (Ledger.AsItem (toShelleyTxIn i)) btbInputs of
+    scriptData' = case Ledger.indexOf (Ledger.AsItem (toShelleyTxIn i)) ctbSpendInputs of
       SNothing  -> scriptData
       SJust (Ledger.AsIndex idx) -> recomputeScriptData (Just idx) idxUpdate scriptData
         where
@@ -211,19 +212,19 @@ applyTxMod tx utxos (RemoveInput i) =
             | otherwise  = idx'
 
 applyTxMod tx utxos (RemoveOutput (TxIx i)) =
-    (Tx (ShelleyTxBody era body{Ledger.btbOutputs = outputs'} scripts scriptData auxData validity) wits, utxos)
+    (Tx (ShelleyTxBody era body{Ledger.ctbOutputs = outputs'} scripts scriptData auxData validity) wits, utxos)
   where
-    Tx (ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
-    outputs' = case Seq.splitAt (fromIntegral i) btbOutputs of
+    Tx (ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
+    outputs' = case Seq.splitAt (fromIntegral i) ctbOutputs of
                  (before, _ Seq.:<| after) -> before <> after
                  (_, Seq.Empty)            -> error $ "RemoveOutput: Can't remove index " ++ show i ++ " from "
-                                                   ++ show (Seq.length btbOutputs) ++ " outputs"
+                                                   ++ show (Seq.length ctbOutputs) ++ " outputs"
 
 applyTxMod tx utxos (AddOutput addr value datum refscript) =
-    (Tx (ShelleyTxBody era body{Ledger.btbOutputs = outputs'} scripts scriptData' auxData validity) wits, utxos)
+    (Tx (ShelleyTxBody era body{Ledger.ctbOutputs = outputs'} scripts scriptData' auxData validity) wits, utxos)
   where
-    Tx (ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
-    outputs' = btbOutputs Seq.:|> CBOR.mkSized (eraProtVerLow @LedgerEra) out
+    Tx (ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
+    outputs' = ctbOutputs Seq.:|> CBOR.mkSized (eraProtVerLow @LedgerEra) out
     out = toShelleyTxOut shelleyBasedEra
                          (makeTxOut addr value datum refscript)
     scriptData' = case datum of
@@ -233,14 +234,14 @@ applyTxMod tx utxos (AddOutput addr value datum refscript) =
       TxOutDatumInline _ d -> addDatum (toAlonzoData d) scriptData
 
 applyTxMod tx utxos (AddInput addr value datum rscript False) =
-    ( Tx (ShelleyTxBody era body{Ledger.btbInputs = inputs'} scripts scriptData'' auxData validity) wits
+    ( Tx (ShelleyTxBody era body{Ledger.ctbSpendInputs = inputs'} scripts scriptData'' auxData validity) wits
     , utxos' )
   where
-    Tx (ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
+    Tx (ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
     txIn = mkNewTxIn utxos
 
     input   = toShelleyTxIn txIn
-    inputs' = Set.insert input btbInputs
+    inputs' = Set.insert input ctbSpendInputs
     SJust (Ledger.AsIndex idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
 
     txOut   = makeTxOut addr value datum rscript
@@ -259,33 +260,33 @@ applyTxMod tx utxos (AddInput addr value datum rscript False) =
     scriptData' = recomputeScriptData Nothing idxUpdate scriptData
 
 applyTxMod tx utxos (AddInput addr value datum rscript True) =
-    ( Tx (ShelleyTxBody era body{Ledger.btbReferenceInputs = refInputs} scripts scriptData auxData validity) wits
+    ( Tx (ShelleyTxBody era body{Ledger.ctbReferenceInputs = refInputs} scripts scriptData auxData validity) wits
     , utxos' )
   where
-    Tx (ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
+    Tx (ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
 
     txIn = mkNewTxIn utxos
 
     input   = toShelleyTxIn txIn
-    refInputs = Set.insert input btbReferenceInputs
+    refInputs = Set.insert input ctbReferenceInputs
 
     txOut   = makeTxOut addr value datum rscript
     utxos'  = UTxO . Map.insert txIn txOut . unUTxO $ utxos
 
 applyTxMod tx utxos (AddPlutusScriptReferenceInput script value datum rscript) =
-    ( Tx (ShelleyTxBody era body{Ledger.btbReferenceInputs = refInputs'} scripts' scriptData auxData validity) wits
+    ( Tx (ShelleyTxBody era body{Ledger.ctbReferenceInputs = refInputs'} scripts' scriptData auxData validity) wits
     , utxos' )
   where
-    Tx (ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
+    Tx (ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
 
     txIn       = mkNewTxIn utxos
     input      = toShelleyTxIn txIn
-    refInputs' = Set.insert input btbReferenceInputs
+    refInputs' = Set.insert input ctbReferenceInputs
 
     txOut  = makeTxOut addr value datum rscript
     utxos' = UTxO . Map.insert txIn txOut . unUTxO $ utxos
 
-    scriptInEra = ScriptInEra PlutusScriptV2InBabbage
+    scriptInEra = ScriptInEra PlutusScriptV2InConway
                   (PlutusScript PlutusScriptV2 script)
     newScript = toShelleyScript @Era scriptInEra
     scripts'  = scripts ++ [newScript]
@@ -294,14 +295,14 @@ applyTxMod tx utxos (AddPlutusScriptReferenceInput script value datum rscript) =
     addr = scriptAddressAny hash
 
 applyTxMod tx utxos (AddReferenceScriptInput script value datum redeemer) =
-    ( Tx (ShelleyTxBody era body{Ledger.btbInputs = inputs'} scripts scriptData' auxData validity) wits
+    ( Tx (ShelleyTxBody era body{Ledger.ctbSpendInputs = inputs'} scripts scriptData' auxData validity) wits
     , utxos' )
   where
-    Tx (ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
+    Tx (ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
 
     txIn = mkNewTxIn utxos
     input  = toShelleyTxIn txIn
-    inputs' = Set.insert input btbInputs
+    inputs' = Set.insert input ctbSpendInputs
 
     txOut  = makeTxOut addr value datum ReferenceScriptNone
     utxos' = UTxO . Map.insert txIn txOut . unUTxO $ utxos
@@ -323,19 +324,19 @@ applyTxMod tx utxos (AddReferenceScriptInput script value datum redeemer) =
     addr = scriptAddressAny script
 
 applyTxMod tx utxos (AddPlutusScriptInput script value datum redeemer rscript) =
-    ( Tx (ShelleyTxBody era body{Ledger.btbInputs = inputs'} scripts' scriptData' auxData validity) wits
+    ( Tx (ShelleyTxBody era body{Ledger.ctbSpendInputs = inputs'} scripts' scriptData' auxData validity) wits
     , utxos' )
   where
-    Tx (ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
+    Tx (ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
 
     txIn = mkNewTxIn utxos
     input  = toShelleyTxIn txIn
-    inputs' = Set.insert input btbInputs
+    inputs' = Set.insert input ctbSpendInputs
 
     txOut  = makeTxOut addr value datum rscript
     utxos' = UTxO . Map.insert txIn txOut . unUTxO $ utxos
 
-    scriptInEra = ScriptInEra PlutusScriptV2InBabbage
+    scriptInEra = ScriptInEra PlutusScriptV2InConway
                   (PlutusScript PlutusScriptV2 script)
     newScript = toShelleyScript @Era scriptInEra
     scripts'  = scripts ++ [newScript]
@@ -358,20 +359,20 @@ applyTxMod tx utxos (AddPlutusScriptInput script value datum redeemer rscript) =
     addr = scriptAddressAny hash
 
 applyTxMod tx utxos (AddSimpleScriptInput script value rscript False) =
-    ( Tx (ShelleyTxBody era body{Ledger.btbInputs = inputs'} scripts' scriptData' auxData validity) wits
+    ( Tx (ShelleyTxBody era body{Ledger.ctbSpendInputs = inputs'} scripts' scriptData' auxData validity) wits
     , utxos' )
   where
-    Tx (ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
+    Tx (ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
 
     txIn = mkNewTxIn utxos
 
     input  = toShelleyTxIn txIn
-    inputs' = Set.insert input btbInputs
+    inputs' = Set.insert input ctbSpendInputs
 
     txOut  = makeTxOut addr value TxOutDatumNone rscript
     utxos' = UTxO . Map.insert txIn txOut . unUTxO $ utxos
 
-    scriptInEra = ScriptInEra SimpleScriptInBabbage
+    scriptInEra = ScriptInEra SimpleScriptInConway
                   (SimpleScript script)
     newScript = toShelleyScript @Era scriptInEra
     scripts'  = scripts ++ [newScript]
@@ -388,19 +389,19 @@ applyTxMod tx utxos (AddSimpleScriptInput script value rscript False) =
 -- NOTE: this is okay (??) because there is no requirement to provide the
 -- data for reference inputs
 applyTxMod tx utxos (AddSimpleScriptInput script value rscript True) =
-    ( Tx (ShelleyTxBody era body{Ledger.btbReferenceInputs = refInputs} scripts' scriptData auxData validity) wits
+    ( Tx (ShelleyTxBody era body{Ledger.ctbReferenceInputs = refInputs} scripts' scriptData auxData validity) wits
     , utxos' )
   where
-    Tx (ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
+    Tx (ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
 
     txIn = mkNewTxIn utxos
     input  = toShelleyTxIn txIn
-    refInputs = Set.insert input btbReferenceInputs
+    refInputs = Set.insert input ctbReferenceInputs
 
     txOut  = makeTxOut addr value TxOutDatumNone rscript
     utxos' = UTxO . Map.insert txIn txOut . unUTxO $ utxos
 
-    scriptInEra = ScriptInEra SimpleScriptInBabbage
+    scriptInEra = ScriptInEra SimpleScriptInConway
                   (SimpleScript script)
     newScript = toShelleyScript @Era scriptInEra
     scripts'  = scripts ++ [newScript]
@@ -408,13 +409,13 @@ applyTxMod tx utxos (AddSimpleScriptInput script value rscript True) =
     addr = scriptAddressAny $ hashScript (SimpleScript script)
 
 applyTxMod tx utxos (ChangeOutput ix maddr mvalue mdatum mrscript) =
-    (Tx (ShelleyTxBody era body{Ledger.btbOutputs = outputs'} scripts scriptData' auxData validity) wits, utxos)
+    (Tx (ShelleyTxBody era body{Ledger.ctbOutputs = outputs'} scripts scriptData' auxData validity) wits, utxos)
   where
     TxIx (fromIntegral -> idx) = ix
-    Tx bdy@(ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
+    Tx bdy@(ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
     TxBody (TxBodyContent{txOuts=txOuts}) = bdy
     TxOut (AddressInEra _ (toAddressAny -> addr)) (txOutValueToValue -> value) datum rscript = txOuts !! idx
-    (outputsStart, _ Seq.:<| outputsEnd) = Seq.splitAt idx btbOutputs
+    (outputsStart, _ Seq.:<| outputsEnd) = Seq.splitAt idx ctbOutputs
     outputs' = outputsStart Seq.>< (CBOR.mkSized (eraProtVerLow @LedgerEra) out Seq.:<| outputsEnd)
     out = toShelleyTxOut shelleyBasedEra $ makeTxOut (fromMaybe addr maddr)
                                                      (fromMaybe value mvalue)
@@ -455,7 +456,7 @@ applyTxMod tx utxos (ChangeInput txIn maddr mvalue mdatum mrscript) =
 applyTxMod tx utxos (ChangeScriptInput txIn mvalue mdatum mredeemer mrscript) =
     (Tx (ShelleyTxBody era body scripts scriptData' auxData validity) wits, utxos')
   where
-    Tx (ShelleyTxBody era body@Ledger.BabbageTxBody{..} scripts scriptData auxData validity) wits = tx
+    Tx (ShelleyTxBody era body@Ledger.ConwayTxBody{..} scripts scriptData auxData validity) wits = tx
     (addr, value, utxoDatum, rscript) = case Map.lookup txIn $ unUTxO utxos of
       Just (TxOut addr (txOutValueToValue -> value) utxoDatum rscript) ->
         (addr, value, utxoDatum, rscript)
@@ -465,7 +466,7 @@ applyTxMod tx utxos (ChangeScriptInput txIn mvalue mdatum mredeemer mrscript) =
       TxBodyNoScriptData -> error "No script data available"
       TxBodyScriptData _ (Ledger.TxDats dats) (Ledger.Redeemers rdmrs) ->
         (fromJust $ Map.lookup utxoDatumHash dats,
-         fromJust $ Map.lookup (Ledger.AlonzoSpending (Ledger.AsIndex idx)) rdmrs)
+         fromJust $ Map.lookup (Ledger.ConwaySpending (Ledger.AsIndex idx)) rdmrs)
 
     utxoDatumHash = case utxoDatum of
       TxOutDatumNone       -> error "No existing datum"
@@ -486,7 +487,7 @@ applyTxMod tx utxos (ChangeScriptInput txIn mvalue mdatum mredeemer mrscript) =
 
     utxos' = UTxO . Map.insert txIn txOut . unUTxO $ utxos
 
-    idx = case Ledger.indexOf (Ledger.AsItem (toShelleyTxIn txIn)) btbInputs of
+    idx = case Ledger.indexOf (Ledger.AsItem (toShelleyTxIn txIn)) ctbSpendInputs of
       SJust (Ledger.AsIndex idx) -> idx
       _                          -> error "The impossible happened!"
 

@@ -3,7 +3,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module Test.QuickCheck.ContractModel.Internal.Symbolics where
 
-import Cardano.Api hiding (txIns)
+import Cardano.Api hiding (txIns, Pretty, (<+>), Doc)
 import Control.Lens
 
 import Test.QuickCheck.StateModel

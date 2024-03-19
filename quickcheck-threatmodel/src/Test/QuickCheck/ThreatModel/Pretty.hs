@@ -1,9 +1,9 @@
 
 module Test.QuickCheck.ThreatModel.Pretty where
 
-import Cardano.Api
-import Cardano.Api.Byron
-import Cardano.Api.Shelley
+import Cardano.Api hiding (Doc, (<+>))
+import Cardano.Api.Byron hiding (Doc, (<+>))
+import Cardano.Api.Shelley hiding (Doc, (<+>))
 import Cardano.Ledger.Alonzo.Scripts qualified as Ledger
 import Cardano.Ledger.Alonzo.Tx qualified as Ledger (Data)
 import Cardano.Ledger.Alonzo.TxWits qualified as Ledger

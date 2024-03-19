@@ -81,7 +81,7 @@ library
     -- Plutus and Cardano dependencies
     build-depends:
       plutus-tx                                       >= 1.5.0 && < 1.22,
-      cardano-api                                     >= 8.38 && < 8.39,
+      cardano-api                                     >= 8.39 && < 8.40,
       cardano-strict-containers                       >= 0.1.2 && < 0.2,
       cardano-slotting                                >= 0.1.1 && < 0.2,
       cardano-ledger-binary                           >= 1.1.1 && < 1.4,
@@ -90,6 +90,6 @@ library
       cardano-ledger-alonzo                           >= 1.2.1 && < 1.7,
       cardano-ledger-api                              >= 1.2.0 && < 1.9,
       cardano-ledger-conway                           >= 1.12 && < 1.13,
-      ouroboros-consensus                             >= 0.7.0 && < 0.16,
-      ouroboros-consensus-cardano                     >= 0.6.0 && < 0.14,
+      ouroboros-consensus                             >= 0.7.0 && < 0.17,
+      ouroboros-consensus-cardano                     >= 0.6.0 && < 0.15,
       sop-extras                                      >= 0.1.0 && < 0.2,

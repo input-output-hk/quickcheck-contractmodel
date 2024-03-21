@@ -12,6 +12,7 @@ import Data.Map qualified as Map
 import Cardano.Api
 import Cardano.Api.Shelley
 import Cardano.Ledger.Keys (WitVKey (..), hashKey, coerceKeyRole)
+import Cardano.Ledger.Coin (Coin)
 
 import Test.QuickCheck.ContractModel.Internal.Common
 import Test.QuickCheck.ContractModel.Internal.Utils
@@ -44,7 +45,7 @@ class HasChainIndex m where
 
 allMinAda :: ChainIndex
           -> LedgerProtocolParameters Era
-          -> [Lovelace]
+          -> [Coin]
 allMinAda ci (LedgerProtocolParameters params) =
   [ l
   | TxInState{..} <- transactions ci

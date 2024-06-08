@@ -1,4 +1,6 @@
 .*.sw*
 dist-newstyle
 .pre-commit-config.yaml
-result 
+result
+.direnv/
+.envrc

@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 
 module Test.QuickCheck.ThreatModel.Cardano.Api where
 
@@ -81,20 +82,20 @@ recomputeScriptData _ _ TxBodyNoScriptData = TxBodyNoScriptData
 recomputeScriptData i f (TxBodyScriptData era dats (Ledger.Redeemers rdmrs)) =
   TxBodyScriptData era dats
     (Ledger.Redeemers $ Map.mapKeys updatePtr $ Map.filterWithKey idxFilter rdmrs)
-  where -- updatePtr = Ledger.hoistPlutusPurpose (\(Ledger.AsIndex ix) -> Ledger.AsIndex (f ix)) -- TODO: replace when hoistPlutusPurpose is available
+  where -- updatePtr = Ledger.hoistPlutusPurpose (\(Ledger.AsIx ix) -> Ledger.AsIx (f ix)) -- TODO: replace when hoistPlutusPurpose is available
         updatePtr = \case
-          Ledger.ConwayMinting (Ledger.AsIndex ix) -> Ledger.ConwayMinting (Ledger.AsIndex (f ix))
-          Ledger.ConwaySpending (Ledger.AsIndex ix) -> Ledger.ConwaySpending (Ledger.AsIndex (f ix))
-          Ledger.ConwayRewarding (Ledger.AsIndex ix) -> Ledger.ConwayRewarding (Ledger.AsIndex (f ix))
-          Ledger.ConwayCertifying (Ledger.AsIndex ix) -> Ledger.ConwayCertifying (Ledger.AsIndex (f ix))
-          Ledger.ConwayVoting (Ledger.AsIndex ix) -> Ledger.ConwayVoting (Ledger.AsIndex (f ix))
-          Ledger.ConwayProposing (Ledger.AsIndex ix) -> Ledger.ConwayProposing (Ledger.AsIndex (f ix))
-        idxFilter (Ledger.ConwaySpending (Ledger.AsIndex idx)) _ = Just idx /= i
-        idxFilter (Ledger.ConwayMinting (Ledger.AsIndex idx)) _ = Just idx /= i
-        idxFilter (Ledger.ConwayCertifying (Ledger.AsIndex idx)) _ = Just idx /= i
-        idxFilter (Ledger.ConwayRewarding (Ledger.AsIndex idx)) _ = Just idx /= i
-        idxFilter (Ledger.ConwayVoting (Ledger.AsIndex idx)) _ = Just idx /= i
-        idxFilter (Ledger.ConwayProposing (Ledger.AsIndex idx)) _ = Just idx /= i
+          Ledger.ConwayMinting (Ledger.AsIx ix) -> Ledger.ConwayMinting (Ledger.AsIx (f ix))
+          Ledger.ConwaySpending (Ledger.AsIx ix) -> Ledger.ConwaySpending (Ledger.AsIx (f ix))
+          Ledger.ConwayRewarding (Ledger.AsIx ix) -> Ledger.ConwayRewarding (Ledger.AsIx (f ix))
+          Ledger.ConwayCertifying (Ledger.AsIx ix) -> Ledger.ConwayCertifying (Ledger.AsIx (f ix))
+          Ledger.ConwayVoting (Ledger.AsIx ix) -> Ledger.ConwayVoting (Ledger.AsIx (f ix))
+          Ledger.ConwayProposing (Ledger.AsIx ix) -> Ledger.ConwayProposing (Ledger.AsIx (f ix))
+        idxFilter (Ledger.ConwaySpending (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.ConwayMinting (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.ConwayCertifying (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.ConwayRewarding (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.ConwayVoting (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.ConwayProposing (Ledger.AsIx idx)) _ = Just idx /= i
 
 emptyTxBodyScriptData :: TxBodyScriptData Era
 emptyTxBodyScriptData = TxBodyScriptData AlonzoEraOnwardsConway (Ledger.TxDats mempty) (Ledger.Redeemers mempty)
@@ -107,7 +108,7 @@ addScriptData :: Word32
 addScriptData ix dat rdmr TxBodyNoScriptData = addScriptData ix dat rdmr emptyTxBodyScriptData
 addScriptData ix dat rdmr (TxBodyScriptData era (Ledger.TxDats dats) (Ledger.Redeemers rdmrs)) =
   TxBodyScriptData era (Ledger.TxDats $ Map.insert (Ledger.hashData dat) dat dats)
-                       (Ledger.Redeemers $ Map.insert (Ledger.ConwaySpending (Ledger.AsIndex ix)) rdmr rdmrs)
+                       (Ledger.Redeemers $ Map.insert (Ledger.ConwaySpending (Ledger.AsIx ix)) rdmr rdmrs)
 
 addDatum :: Ledger.Data (ShelleyLedgerEra Era)
          -> TxBodyScriptData Era
@@ -209,10 +210,10 @@ validateTx pparams tx utxos = case result of
                 utxos
                 (getTxBody tx)
     eraHistory :: EraHistory
-    eraHistory = EraHistory (mkInterpreter summary)
+    !eraHistory = EraHistory (mkInterpreter summary)
 
     summary :: Summary (CardanoEras StandardCrypto)
-    summary =
+    !summary =
       Summary . NonEmptyOne $
         EraSummary
           { eraStart = initBound
@@ -222,6 +223,7 @@ validateTx pparams tx utxos = case result of
                 { eraEpochSize = epochSize
                 , eraSlotLength = slotLength
                 , eraSafeZone = UnsafeIndefiniteSafeZone
+                , eraGenesisWin = 100
                 }
           }
 

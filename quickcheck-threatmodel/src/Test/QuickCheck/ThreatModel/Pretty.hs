@@ -154,13 +154,13 @@ prettyTx tx@(Tx body@(TxBody (TxBodyContent{..})) _) =
               TxBodyScriptData _ _ (Ledger.Redeemers rdmrs) -> rdmrs
               TxBodyNoScriptData                            -> mempty
 
-prettyRedeemer :: [TxIn] -> [PolicyId] -> Ledger.PlutusPurpose Ledger.AsIndex LedgerEra -> (Ledger.Data LedgerEra, Ledger.ExUnits) -> Doc
+prettyRedeemer :: [TxIn] -> [PolicyId] -> Ledger.PlutusPurpose Ledger.AsIx LedgerEra -> (Ledger.Data LedgerEra, Ledger.ExUnits) -> Doc
 prettyRedeemer inps mints purpose (dat, _) = pTag <:> prettyScriptData (getScriptData $ fromAlonzoData dat)
   where
     pTag =
       case purpose of
-        Ledger.ConwaySpending (Ledger.AsIndex ix) -> "Spend" <+> prettyIn (inps !! fromIntegral ix)
-        Ledger.ConwayMinting (Ledger.AsIndex ix)  -> "Mint" <+> prettyHash (mints !! fromIntegral ix)
+        Ledger.ConwaySpending (Ledger.AsIx ix) -> "Spend" <+> prettyIn (inps !! fromIntegral ix)
+        Ledger.ConwayMinting (Ledger.AsIx ix)  -> "Mint" <+> prettyHash (mints !! fromIntegral ix)
         Ledger.ConwayCertifying _                 -> "Certify"
         Ledger.ConwayRewarding _                  -> "Reward"
         Ledger.ConwayVoting _                     -> "Vote"

@@ -205,7 +205,7 @@ applyTxMod tx utxos (RemoveInput i) =
                 }
     scriptData' = case Ledger.indexOf (Ledger.AsItem (toShelleyTxIn i)) ctbSpendInputs of
       SNothing  -> scriptData
-      SJust (Ledger.AsIndex idx) -> recomputeScriptData (Just idx) idxUpdate scriptData
+      SJust (Ledger.AsIx idx) -> recomputeScriptData (Just idx) idxUpdate scriptData
         where
           idxUpdate idx'
             | idx' > idx = idx' - 1
@@ -242,7 +242,7 @@ applyTxMod tx utxos (AddInput addr value datum rscript False) =
 
     input   = toShelleyTxIn txIn
     inputs' = Set.insert input ctbSpendInputs
-    SJust (Ledger.AsIndex idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
+    SJust (Ledger.AsIx idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
 
     txOut   = makeTxOut addr value datum rscript
     utxos'  = UTxO . Map.insert txIn txOut . unUTxO $ utxos
@@ -307,7 +307,7 @@ applyTxMod tx utxos (AddReferenceScriptInput script value datum redeemer) =
     txOut  = makeTxOut addr value datum ReferenceScriptNone
     utxos' = UTxO . Map.insert txIn txOut . unUTxO $ utxos
 
-    SJust (Ledger.AsIndex idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
+    SJust (Ledger.AsIx idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
     idxUpdate idx'
       | idx' >= idx = idx' + 1
       | otherwise   = idx'
@@ -341,7 +341,7 @@ applyTxMod tx utxos (AddPlutusScriptInput script value datum redeemer rscript) =
     newScript = toShelleyScript @Era scriptInEra
     scripts'  = scripts ++ [newScript]
 
-    SJust (Ledger.AsIndex idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
+    SJust (Ledger.AsIx idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
     idxUpdate idx'
       | idx' >= idx = idx' + 1
       | otherwise   = idx'
@@ -377,7 +377,7 @@ applyTxMod tx utxos (AddSimpleScriptInput script value rscript False) =
     newScript = toShelleyScript @Era scriptInEra
     scripts'  = scripts ++ [newScript]
 
-    SJust (Ledger.AsIndex idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
+    SJust (Ledger.AsIx idx) = Ledger.indexOf (Ledger.AsItem input) inputs'
     idxUpdate idx'
       | idx' >= idx = idx' + 1
       | otherwise   = idx'
@@ -466,7 +466,7 @@ applyTxMod tx utxos (ChangeScriptInput txIn mvalue mdatum mredeemer mrscript) =
       TxBodyNoScriptData -> error "No script data available"
       TxBodyScriptData _ (Ledger.TxDats dats) (Ledger.Redeemers rdmrs) ->
         (fromJust $ Map.lookup utxoDatumHash dats,
-         fromJust $ Map.lookup (Ledger.ConwaySpending (Ledger.AsIndex idx)) rdmrs)
+         fromJust $ Map.lookup (Ledger.ConwaySpending (Ledger.AsIx idx)) rdmrs)
 
     utxoDatumHash = case utxoDatum of
       TxOutDatumNone       -> error "No existing datum"
@@ -488,7 +488,7 @@ applyTxMod tx utxos (ChangeScriptInput txIn mvalue mdatum mredeemer mrscript) =
     utxos' = UTxO . Map.insert txIn txOut . unUTxO $ utxos
 
     idx = case Ledger.indexOf (Ledger.AsItem (toShelleyTxIn txIn)) ctbSpendInputs of
-      SJust (Ledger.AsIndex idx) -> idx
+      SJust (Ledger.AsIx idx) -> idx
       _                          -> error "The impossible happened!"
 
     scriptData' = addScriptData idx adatum

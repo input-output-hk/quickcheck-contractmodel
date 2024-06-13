@@ -24,8 +24,9 @@ import Data.Map qualified as Map
 import Data.Maybe
 import Text.PrettyPrint.HughesPJClass hiding ((<>))
 
-import Cardano.Api
-import Cardano.Api.Shelley
+import Cardano.Api hiding ((<+>))
+import Cardano.Api.Shelley hiding ((<+>))
+import Cardano.Ledger.Coin (Coin)
 
 class (ContractModel state, IsRunnable m) => RunModel state m where
   -- | Perform an `Action` in some `state` in the `Monad` `m`.  This
@@ -228,7 +229,7 @@ assertBalanceChangesMatch (BalanceChangeOptions observeScript computeFees protoP
 
   in counterexample msg $ property $ checkEqualUpToMinAda minAda predictedBalanceChanges actualBalanceChanges
   where
-    checkEqualUpToMinAda :: Lovelace
+    checkEqualUpToMinAda :: Coin
                          -> Map (AddressInEra Era) Value
                          -> Map (AddressInEra Era) Value
                          -> Bool

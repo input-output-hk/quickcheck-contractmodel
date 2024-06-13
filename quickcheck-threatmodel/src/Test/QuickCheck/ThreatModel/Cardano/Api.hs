@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 
 module Test.QuickCheck.ThreatModel.Cardano.Api where
 
@@ -7,7 +8,9 @@ import Cardano.Api.Shelley
 import Cardano.Ledger.Api.Tx.Body qualified as Ledger
 import Cardano.Ledger.Alonzo.TxWits qualified as Ledger
 import Cardano.Ledger.Alonzo.TxBody qualified as Ledger
-import Cardano.Ledger.Babbage.TxBody qualified as Ledger
+import Cardano.Ledger.Alonzo.Scripts qualified as Ledger
+import Cardano.Ledger.Conway.Scripts qualified as Ledger
+import Cardano.Ledger.Conway.TxBody qualified as Ledger
 import Cardano.Ledger.Crypto (StandardCrypto)
 import Cardano.Ledger.Keys (WitVKey (..), coerceKeyRole, hashKey)
 import Cardano.Ledger.Allegra.Scripts (ValidityInterval (..))
@@ -17,7 +20,6 @@ import Ouroboros.Consensus.Cardano.Block (CardanoEras)
 import Ouroboros.Consensus.HardFork.History
 import Data.SOP.NonEmpty (NonEmpty (NonEmptyOne))
 import PlutusTx (ToData, toData)
-import Cardano.Ledger.Alonzo.Scripts qualified as Ledger
 
 import Data.Either
 import Data.Map qualified as Map
@@ -25,7 +27,7 @@ import Data.Maybe.Strict
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Data.Word
 
-type Era = BabbageEra
+type Era = ConwayEra
 type LedgerEra = ShelleyLedgerEra Era
 
 addressOfTxOut :: TxOut ctx Era -> AddressAny
@@ -45,12 +47,12 @@ referenceScriptOfTxOut (TxOut _ _ _ rscript) = rscript
 redeemerOfTxIn :: Tx Era -> TxIn -> Maybe ScriptData
 redeemerOfTxIn tx txIn = redeemer
   where
-    Tx (ShelleyTxBody _ Ledger.BabbageTxBody{Ledger.btbInputs=inputs} _ scriptData _ _) _ = tx
+    Tx (ShelleyTxBody _ Ledger.ConwayTxBody{Ledger.ctbSpendInputs=inputs} _ scriptData _ _) _ = tx
 
     redeemer = case scriptData of
       TxBodyNoScriptData -> Nothing
       TxBodyScriptData _ _ (Ledger.Redeemers rdmrs) ->
-        getScriptData . fromAlonzoData . fst <$> Map.lookup (Ledger.AlonzoSpending idx) rdmrs
+        getScriptData . fromAlonzoData . fst <$> Map.lookup (Ledger.ConwaySpending idx) rdmrs
 
     idx = case Ledger.indexOf (Ledger.AsItem (toShelleyTxIn txIn)) inputs of
       SJust idx -> idx
@@ -80,19 +82,23 @@ recomputeScriptData _ _ TxBodyNoScriptData = TxBodyNoScriptData
 recomputeScriptData i f (TxBodyScriptData era dats (Ledger.Redeemers rdmrs)) =
   TxBodyScriptData era dats
     (Ledger.Redeemers $ Map.mapKeys updatePtr $ Map.filterWithKey idxFilter rdmrs)
-  where -- updatePtr = Ledger.hoistPlutusPurpose (\(Ledger.AsIndex ix) -> Ledger.AsIndex (f ix)) -- TODO: replace when hoistPlutusPurpose is available
+  where -- updatePtr = Ledger.hoistPlutusPurpose (\(Ledger.AsIx ix) -> Ledger.AsIx (f ix)) -- TODO: replace when hoistPlutusPurpose is available
         updatePtr = \case
-          Ledger.AlonzoMinting (Ledger.AsIndex ix) -> Ledger.AlonzoMinting (Ledger.AsIndex (f ix))
-          Ledger.AlonzoSpending (Ledger.AsIndex ix) -> Ledger.AlonzoSpending (Ledger.AsIndex (f ix))
-          Ledger.AlonzoRewarding (Ledger.AsIndex ix) -> Ledger.AlonzoRewarding (Ledger.AsIndex (f ix))
-          Ledger.AlonzoCertifying (Ledger.AsIndex ix) -> Ledger.AlonzoCertifying (Ledger.AsIndex (f ix))
-        idxFilter (Ledger.AlonzoSpending (Ledger.AsIndex idx)) _ = Just idx /= i
-        idxFilter (Ledger.AlonzoMinting (Ledger.AsIndex idx)) _ = Just idx /= i
-        idxFilter (Ledger.AlonzoCertifying (Ledger.AsIndex idx)) _ = Just idx /= i
-        idxFilter (Ledger.AlonzoRewarding (Ledger.AsIndex idx)) _ = Just idx /= i
+          Ledger.ConwayMinting (Ledger.AsIx ix) -> Ledger.ConwayMinting (Ledger.AsIx (f ix))
+          Ledger.ConwaySpending (Ledger.AsIx ix) -> Ledger.ConwaySpending (Ledger.AsIx (f ix))
+          Ledger.ConwayRewarding (Ledger.AsIx ix) -> Ledger.ConwayRewarding (Ledger.AsIx (f ix))
+          Ledger.ConwayCertifying (Ledger.AsIx ix) -> Ledger.ConwayCertifying (Ledger.AsIx (f ix))
+          Ledger.ConwayVoting (Ledger.AsIx ix) -> Ledger.ConwayVoting (Ledger.AsIx (f ix))
+          Ledger.ConwayProposing (Ledger.AsIx ix) -> Ledger.ConwayProposing (Ledger.AsIx (f ix))
+        idxFilter (Ledger.ConwaySpending (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.ConwayMinting (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.ConwayCertifying (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.ConwayRewarding (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.ConwayVoting (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.ConwayProposing (Ledger.AsIx idx)) _ = Just idx /= i
 
 emptyTxBodyScriptData :: TxBodyScriptData Era
-emptyTxBodyScriptData = TxBodyScriptData AlonzoEraOnwardsBabbage (Ledger.TxDats mempty) (Ledger.Redeemers mempty)
+emptyTxBodyScriptData = TxBodyScriptData AlonzoEraOnwardsConway (Ledger.TxDats mempty) (Ledger.Redeemers mempty)
 
 addScriptData :: Word32
               -> Ledger.Data (ShelleyLedgerEra Era)
@@ -102,7 +108,7 @@ addScriptData :: Word32
 addScriptData ix dat rdmr TxBodyNoScriptData = addScriptData ix dat rdmr emptyTxBodyScriptData
 addScriptData ix dat rdmr (TxBodyScriptData era (Ledger.TxDats dats) (Ledger.Redeemers rdmrs)) =
   TxBodyScriptData era (Ledger.TxDats $ Map.insert (Ledger.hashData dat) dat dats)
-                       (Ledger.Redeemers $ Map.insert (Ledger.AlonzoSpending (Ledger.AsIndex ix)) rdmr rdmrs)
+                       (Ledger.Redeemers $ Map.insert (Ledger.ConwaySpending (Ledger.AsIx ix)) rdmr rdmrs)
 
 addDatum :: Ledger.Data (ShelleyLedgerEra Era)
          -> TxBodyScriptData Era
@@ -121,7 +127,7 @@ toCtxUTxODatum d = case d of
 
 -- | Convert ScriptData to a `Test.QuickCheck.ContractModel.ThreatModel.Datum`.
 txOutDatum :: ScriptData -> TxOutDatum CtxTx Era
-txOutDatum d = TxOutDatumInTx AlonzoEraOnwardsBabbage (unsafeHashableScriptData d)
+txOutDatum d = TxOutDatumInTx AlonzoEraOnwardsConway (unsafeHashableScriptData d)
 
 -- | Convert a Haskell value to ScriptData for use as a
 -- `Test.QuickCheck.ContractModel.ThreatModel.Redeemer` or convert to a
@@ -197,17 +203,17 @@ validateTx pparams tx utxos = case result of
                                  [show e | Left e <- Map.elems report]
   where
     result = evaluateTransactionExecutionUnits
-                BabbageEra
+                ConwayEra
                 systemStart
                 (toLedgerEpochInfo eraHistory)
                 pparams
                 utxos
                 (getTxBody tx)
     eraHistory :: EraHistory
-    eraHistory = EraHistory (mkInterpreter summary)
+    !eraHistory = EraHistory (mkInterpreter summary)
 
     summary :: Summary (CardanoEras StandardCrypto)
-    summary =
+    !summary =
       Summary . NonEmptyOne $
         EraSummary
           { eraStart = initBound
@@ -217,6 +223,7 @@ validateTx pparams tx utxos = case result of
                 { eraEpochSize = epochSize
                 , eraSlotLength = slotLength
                 , eraSafeZone = UnsafeIndefiniteSafeZone
+                , eraGenesisWin = 100
                 }
           }
 

@@ -24,6 +24,7 @@ import Data.Map qualified as Map
 import Data.Maybe.Strict
 import Data.Time.Clock.POSIX (posixSecondsToUTCTime)
 import Data.Word
+import Ouroboros.Consensus.Block (GenesisWindow(..))
 
 type Era = BabbageEra
 type LedgerEra = ShelleyLedgerEra Era
@@ -80,16 +81,16 @@ recomputeScriptData _ _ TxBodyNoScriptData = TxBodyNoScriptData
 recomputeScriptData i f (TxBodyScriptData era dats (Ledger.Redeemers rdmrs)) =
   TxBodyScriptData era dats
     (Ledger.Redeemers $ Map.mapKeys updatePtr $ Map.filterWithKey idxFilter rdmrs)
-  where -- updatePtr = Ledger.hoistPlutusPurpose (\(Ledger.AsIndex ix) -> Ledger.AsIndex (f ix)) -- TODO: replace when hoistPlutusPurpose is available
+  where -- updatePtr = Ledger.hoistPlutusPurpose (\(Ledger.AsIx ix) -> Ledger.AsIx (f ix)) -- TODO: replace when hoistPlutusPurpose is available
         updatePtr = \case
-          Ledger.AlonzoMinting (Ledger.AsIndex ix) -> Ledger.AlonzoMinting (Ledger.AsIndex (f ix))
-          Ledger.AlonzoSpending (Ledger.AsIndex ix) -> Ledger.AlonzoSpending (Ledger.AsIndex (f ix))
-          Ledger.AlonzoRewarding (Ledger.AsIndex ix) -> Ledger.AlonzoRewarding (Ledger.AsIndex (f ix))
-          Ledger.AlonzoCertifying (Ledger.AsIndex ix) -> Ledger.AlonzoCertifying (Ledger.AsIndex (f ix))
-        idxFilter (Ledger.AlonzoSpending (Ledger.AsIndex idx)) _ = Just idx /= i
-        idxFilter (Ledger.AlonzoMinting (Ledger.AsIndex idx)) _ = Just idx /= i
-        idxFilter (Ledger.AlonzoCertifying (Ledger.AsIndex idx)) _ = Just idx /= i
-        idxFilter (Ledger.AlonzoRewarding (Ledger.AsIndex idx)) _ = Just idx /= i
+          Ledger.AlonzoMinting (Ledger.AsIx ix) -> Ledger.AlonzoMinting (Ledger.AsIx (f ix))
+          Ledger.AlonzoSpending (Ledger.AsIx ix) -> Ledger.AlonzoSpending (Ledger.AsIx (f ix))
+          Ledger.AlonzoRewarding (Ledger.AsIx ix) -> Ledger.AlonzoRewarding (Ledger.AsIx (f ix))
+          Ledger.AlonzoCertifying (Ledger.AsIx ix) -> Ledger.AlonzoCertifying (Ledger.AsIx (f ix))
+        idxFilter (Ledger.AlonzoSpending (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.AlonzoMinting (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.AlonzoCertifying (Ledger.AsIx idx)) _ = Just idx /= i
+        idxFilter (Ledger.AlonzoRewarding (Ledger.AsIx idx)) _ = Just idx /= i
 
 emptyTxBodyScriptData :: TxBodyScriptData Era
 emptyTxBodyScriptData = TxBodyScriptData AlonzoEraOnwardsBabbage (Ledger.TxDats mempty) (Ledger.Redeemers mempty)
@@ -102,7 +103,7 @@ addScriptData :: Word32
 addScriptData ix dat rdmr TxBodyNoScriptData = addScriptData ix dat rdmr emptyTxBodyScriptData
 addScriptData ix dat rdmr (TxBodyScriptData era (Ledger.TxDats dats) (Ledger.Redeemers rdmrs)) =
   TxBodyScriptData era (Ledger.TxDats $ Map.insert (Ledger.hashData dat) dat dats)
-                       (Ledger.Redeemers $ Map.insert (Ledger.AlonzoSpending (Ledger.AsIndex ix)) rdmr rdmrs)
+                       (Ledger.Redeemers $ Map.insert (Ledger.AlonzoSpending (Ledger.AsIx ix)) rdmr rdmrs)
 
 addDatum :: Ledger.Data (ShelleyLedgerEra Era)
          -> TxBodyScriptData Era
@@ -217,6 +218,7 @@ validateTx pparams tx utxos = case result of
                 { eraEpochSize = epochSize
                 , eraSlotLength = slotLength
                 , eraSafeZone = UnsafeIndefiniteSafeZone
+                , eraGenesisWin = genesisWindow
                 }
           }
 
@@ -228,6 +230,9 @@ validateTx pparams tx utxos = case result of
 
     systemStart :: SystemStart
     systemStart = SystemStart $ posixSecondsToUTCTime 0
+
+    genesisWindow :: GenesisWindow
+    genesisWindow = GenesisWindow 10
 
 -- | Keep only UTxOs mentioned in the given transaction.
 restrictUTxO :: Tx Era -> UTxO Era -> UTxO Era

@@ -1,9 +1,9 @@
 
 module Test.QuickCheck.ThreatModel.Pretty where
 
-import Cardano.Api
-import Cardano.Api.Byron
-import Cardano.Api.Shelley
+import Cardano.Api hiding (Doc, (<+>))
+import Cardano.Api.Byron hiding (Doc, (<+>))
+import Cardano.Api.Shelley hiding (Doc, (<+>))
 import Cardano.Ledger.Alonzo.Tx qualified as Ledger (Data)
 import Cardano.Ledger.Alonzo.TxWits qualified as Ledger
 import Cardano.Ledger.SafeHash qualified as Ledger
@@ -153,13 +153,13 @@ prettyTx tx@(Tx body@(TxBody (TxBodyContent{..})) _) =
               TxBodyScriptData _ _ (Ledger.Redeemers rdmrs) -> rdmrs
               TxBodyNoScriptData                            -> mempty
 
-prettyRedeemer :: [TxIn] -> [PolicyId] -> Ledger.PlutusPurpose Ledger.AsIndex LedgerEra -> (Ledger.Data LedgerEra, Ledger.ExUnits) -> Doc
+prettyRedeemer :: [TxIn] -> [PolicyId] -> Ledger.PlutusPurpose Ledger.AsIx LedgerEra -> (Ledger.Data LedgerEra, Ledger.ExUnits) -> Doc
 prettyRedeemer inps mints purpose (dat, _) = pTag <:> prettyScriptData (getScriptData $ fromAlonzoData dat)
   where
     pTag =
       case purpose of
-        Ledger.AlonzoSpending (Ledger.AsIndex ix) -> "Spend" <+> prettyIn (inps !! fromIntegral ix)
-        Ledger.AlonzoMinting (Ledger.AsIndex ix)  -> "Mint" <+> prettyHash (mints !! fromIntegral ix)
+        Ledger.AlonzoSpending (Ledger.AsIx ix) -> "Spend" <+> prettyIn (inps !! fromIntegral ix)
+        Ledger.AlonzoMinting (Ledger.AsIx ix)  -> "Mint" <+> prettyHash (mints !! fromIntegral ix)
         Ledger.AlonzoCertifying _                 -> "Certify"
         Ledger.AlonzoRewarding _                  -> "Reward"
 

@@ -15,6 +15,7 @@ import Cardano.Ledger.Keys (WitVKey (..), hashKey, coerceKeyRole)
 
 import Test.QuickCheck.ContractModel.Internal.Common
 import Test.QuickCheck.ContractModel.Internal.Utils
+import Cardano.Api.Ledger (Coin)
 
 data ChainState = ChainState
   { slot :: SlotNo
@@ -44,7 +45,7 @@ class HasChainIndex m where
 
 allMinAda :: ChainIndex
           -> LedgerProtocolParameters Era
-          -> [Lovelace]
+          -> [Coin]
 allMinAda ci (LedgerProtocolParameters params) =
   [ l
   | TxInState{..} <- transactions ci

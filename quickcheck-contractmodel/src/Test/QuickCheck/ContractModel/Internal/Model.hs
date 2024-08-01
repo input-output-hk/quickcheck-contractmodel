@@ -289,8 +289,7 @@ instance ContractModel state => StateModel.StateModel (ModelState state) where
   nextState s (WaitUntil n) _          = runSpec (() <$ waitUntil n) (error "unreachable") s
   nextState s (Observation _ _) _      = s
 
-  -- TODO: probably wise to avoid binding tokens here
-  failureNextState s (ContractAction _ cmd) = runSpec (failureNextState cmd) StateModel.failureResult s
+  failureNextState s (ContractAction _ cmd) = runSpec (failureNextState cmd) (error "A result of a failing action has been erronesouly inspected") s
   failureNextState _ _ = error "The impossible happened in failureNextState"
 
   -- Note that the order of the preconditions in this case matter - we want to run

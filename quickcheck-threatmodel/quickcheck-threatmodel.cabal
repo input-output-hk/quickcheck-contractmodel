@@ -77,20 +77,20 @@ library
       time >= 1.9.3 && <1.13,
     -- QuickCheck dependencies
     build-depends:
-      QuickCheck ^>= 2.14,
+      QuickCheck >= 2.14 && < 2.16
     -- Plutus and Cardano dependencies
     build-depends:
-      plutus-tx                                       >= 1.5.0 && < 1.22,
-      cardano-api                                     >= 8.38 && < 8.39,
+      plutus-tx                                       >= 1.5.0 && < 1.31,
+      cardano-api                                     >= 9.0   && < 9.2,
       cardano-strict-containers                       >= 0.1.2 && < 0.2,
-      cardano-slotting                                >= 0.1.1 && < 0.2,
+      cardano-slotting                                >= 0.1.1 && < 0.3,
       cardano-ledger-binary                           >= 1.1.1 && < 1.4,
-      cardano-ledger-allegra                          >= 1.1.1 && < 1.4,
-      cardano-ledger-core                             >= 1.2.0 && < 1.11,
-      cardano-ledger-shelley                          >= 1.2.0 && < 1.10,
-      cardano-ledger-alonzo                           >= 1.2.1 && < 1.7,
-      cardano-ledger-api                              >= 1.2.0 && < 1.9,
-      cardano-ledger-babbage                          >= 1.2.1 && < 1.7,
-      ouroboros-consensus                             >= 0.7.0 && < 0.16,
-      ouroboros-consensus-cardano                     >= 0.6.0 && < 0.14,
-      sop-extras                                      >= 0.1.0 && < 0.2,
+      cardano-ledger-allegra                          >= 1.1.1 && < 1.6,
+      cardano-ledger-core                             >= 1.2.0 && < 1.14,
+      cardano-ledger-shelley                          >= 1.2.0 && < 1.13,
+      cardano-ledger-alonzo                           >= 1.2.1 && < 1.11,
+      cardano-ledger-api                              >= 1.2.0 && < 1.10,
+      cardano-ledger-babbage                          >= 1.2.1 && < 1.9,
+      ouroboros-consensus                             >= 0.7.0 && < 0.21,
+      ouroboros-consensus-cardano                     >= 0.6.0 && < 0.19,
+      sop-extras                                      >= 0.1.0 && < 0.3,
